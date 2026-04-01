@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(node verify-keycloak.js:*)",
+      "Bash(npm run dev:clean:*)",
+      "Bash(git mv:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:mantine.dev)",
+      "Bash(npx next build:*)",
+      "Bash(python -c \"import openpyxl; wb = openpyxl.load_workbook\\(''c:/test/ejemplo presupuesto.xlsx'', data_only=True\\); [print\\(f''=== Hoja: {ws.title} ===''\\) or [[print\\(f''  {cell.value}'' if cell.value is not None else '''', end=''\\\\t''\\) for cell in row] or print\\(\\) for row in ws.iter_rows\\(\\)] for ws in wb.worksheets]\")",
+      "Bash(node -e \":*)",
+      "Bash(npx xlsx \"ejemplo presupuesto.xlsx\")",
+      "Bash(npx xlsx-cli \"ejemplo presupuesto.xlsx\")",
+      "Bash(node -e \"const icons = require\\(''c:/test/node_modules/@tabler/icons-react''\\); console.log\\(''IconBuilding2:'', !!icons.IconBuilding2, ''IconLayoutList:'', !!icons.IconLayoutList, ''ThemeIcon from mantine:'', ''n/a''\\)\")",
+      "Bash(xargs grep -l \"params: {\")"
+    ]
+  }
+}

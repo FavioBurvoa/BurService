@@ -1,0 +1,70 @@
+// ============================================================================
+// CURRENCY INPUT
+// Input de monto con formato peso chileno (puntos como separadores de miles)
+// ============================================================================
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { TextInput } from '@mantine/core';
+import type { TextInputProps } from '@mantine/core';
+
+interface CurrencyInputProps extends Omit<TextInputProps, 'value' | 'onChange'> {
+  value: number | null;
+  onChange: (value: number | null) => void;
+}
+
+function formatCLP(v: number | null | undefined): string {
+  if (v === null || v === undefined || isNaN(v)) return '';
+  return Math.round(v).toLocaleString('es-CL');
+}
+
+function parseCLP(s: string): number | null {
+  const clean = s.replace(/\./g, '').replace(',', '.').trim();
+  if (clean === '') return null;
+  const n = parseFloat(clean);
+  return isNaN(n) ? null : Math.round(n);
+}
+
+export function CurrencyInput({ value, onChange, onKeyDown, ...props }: CurrencyInputProps) {
+  const [display, setDisplay] = useState(formatCLP(value));
+  const [focused, setFocused] = useState(false);
+
+  // Sync display when value changes externally (not while focused)
+  useEffect(() => {
+    if (!focused) {
+      setDisplay(formatCLP(value));
+    }
+  }, [value, focused]);
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setFocused(true);
+    // Show raw number for easy editing
+    setDisplay(value !== null && value !== undefined ? String(value) : '');
+    e.target.select();
+    props.onFocus?.(e);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setFocused(false);
+    const parsed = parseCLP(display);
+    onChange(parsed);
+    setDisplay(formatCLP(parsed));
+    props.onBlur?.(e);
+  };
+
+  return (
+    <TextInput
+      {...props}
+      value={display}
+      onChange={(e) => setDisplay(e.currentTarget.value)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={onKeyDown}
+      styles={{
+        ...props.styles,
+        input: { textAlign: 'right', ...(props.styles as any)?.input },
+      }}
+    />
+  );
+}

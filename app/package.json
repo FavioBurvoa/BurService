@@ -1,0 +1,42 @@
+{
+  "name": "bur-service",
+  "version": "1.0.0",
+  "description": "Sistema de Gestión para Taller Automotriz",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:clean": "rimraf .next && next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "verify-keycloak": "node verify-keycloak.js"
+  },
+  "dependencies": {
+    "@mantine/core": "^8.3.13",
+    "@mantine/form": "^8.3.13",
+    "@mantine/hooks": "^8.3.13",
+    "@mantine/notifications": "^8.3.13",
+    "@tabler/icons-react": "^3.36.1",
+    "@tanstack/react-query": "^5.90.20",
+    "axios": "^1.13.2",
+    "next": "16.1.4",
+    "next-auth": "^5.0.0-beta.30",
+    "next-themes": "^0.4.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.4",
+    "rimraf": "^6.1.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

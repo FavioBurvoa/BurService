@@ -1,0 +1,100 @@
+{
+  "items": [
+    {
+      "id": "presupuestos",
+      "label": "Presupuestos",
+      "icon": "IconFileText",
+      "children": [
+        {
+          "label": "Nuevo",
+          "href": "/presupuestos/nuevo"
+        },
+        {
+          "label": "Lista",
+          "href": "/presupuestos/lista"
+        },
+        {
+          "label": "Seguimiento",
+          "href": "/presupuestos/seguimiento"
+        },
+        {
+          "label": "Hoja de vida",
+          "href": "/presupuestos/vehiculo"
+        }
+      ]
+    },
+    {
+      "id": "vehiculos",
+      "label": "Vehículos",
+      "icon": "IconCar",
+      "children": [
+        {
+          "label": "Marcas",
+          "href": "/mantenedores/marcas"
+        },
+        {
+          "label": "Modelos",
+          "href": "/mantenedores/modelos"
+        },
+        {
+          "label": "Tipos Vehículo",
+          "href": "/mantenedores/tipos-vehiculo"
+        },
+        {
+          "label": "Vehículos",
+          "href": "/mantenedores/vehiculos"
+        }
+      ]
+    },
+    {
+      "id": "clientes",
+      "label": "Clientes",
+      "icon": "IconUsers",
+      "children": [
+        {
+          "label": "Regiones",
+          "href": "/mantenedores/regiones"
+        },
+        {
+          "label": "Comunas",
+          "href": "/mantenedores/comunas"
+        },
+        {
+          "label": "Tipos Contribuyente",
+          "href": "/mantenedores/tipos-contribuyente"
+        },
+        {
+          "label": "Contribuyentes",
+          "href": "/mantenedores/contribuyentes"
+        }
+      ]
+    },
+    {
+      "id": "conf-empresas",
+      "label": "Conf. Empresas",
+      "icon": "IconBuilding",
+      "children": [
+        {
+          "label": "Empresas",
+          "href": "/mantenedores/empresas"
+        },
+        {
+          "label": "Certificados DTE",
+          "href": "/mantenedores/certificados-dte"
+        },
+        {
+          "label": "Tipos DTE",
+          "href": "/mantenedores/tipos-dte"
+        },
+        {
+          "label": "Folios CAF",
+          "href": "/mantenedores/folios-caf"
+        },
+        {
+          "label": "Tipos Presupuesto",
+          "href": "/mantenedores/tipos-presupuesto"
+        }
+      ]
+    }
+  ]
+}

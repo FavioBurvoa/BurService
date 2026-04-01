@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"c:/test/api/docker/init_tmp.sql\")",
+      "Bash(ls -la /c/test/api/src/modules/*/)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(data[0][''''text'''']\\)\")",
+      "Bash(python3 -c \":*)",
+      "Bash(node -e \":*)",
+      "Bash(docker compose:*)",
+      "Bash(curl -s http://localhost:3002/health)",
+      "Bash(grep -n \"PdfButton\\\\|presupuesto-documento\\\\|usePdfDownload\" /c/test/app/src/app/\\\\\\(auth\\\\\\)/presupuestos/[id]/page.tsx)",
+      "WebSearch",
+      "WebFetch(domain:articulo.mercadolibre.cl)",
+      "WebFetch(domain:raspberrypi.cl)",
+      "WebFetch(domain:mcielectronics.cl)",
+      "WebFetch(domain:www.falabella.com)",
+      "WebFetch(domain:listado.mercadolibre.cl)",
+      "WebFetch(domain:centrale.cl)",
+      "WebFetch(domain:www.spdigital.cl)",
+      "WebFetch(domain:minipc-review.com)",
+      "WebFetch(domain:www.ubuy.cl)",
+      "WebFetch(domain:www.winpy.cl)",
+      "WebFetch(domain:bip.cl)",
+      "WebFetch(domain:ecoindigital.cl)",
+      "WebFetch(domain:www.jeffgeerling.com)",
+      "WebFetch(domain:es.aliexpress.com)",
+      "WebFetch(domain:the-diy-life.com)",
+      "WebFetch(domain:botmonster.com)",
+      "WebFetch(domain:descuentoff.cl)",
+      "WebFetch(domain:www.aliexpress.com)",
+      "Bash(curl -s \"https://www.bip.cl/categoria/366\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\")",
+      "WebFetch(domain:www.bip.cl)",
+      "WebFetch(domain:liliputing.com)",
+      "WebFetch(domain:www.fanlesstech.com)",
+      "WebFetch(domain:minipcreviewer.com)",
+      "WebFetch(domain:www.guiahardware.es)",
+      "WebFetch(domain:us.msi.com)"
+    ]
+  }
+}
