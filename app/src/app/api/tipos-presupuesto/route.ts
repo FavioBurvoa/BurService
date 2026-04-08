@@ -13,6 +13,11 @@ interface TipoPresupuesto {
   codigo: string;
   descripcion: string;
   id_tipo_dte: number | null;
+  encabezado_linea1: string | null;
+  encabezado_linea2: string | null;
+  logo_ancho: number | null;
+  logo_alto: number | null;
+  dias_validez: number;
   activo: boolean;
 }
 

@@ -19,6 +19,11 @@ interface TipoPresupuesto {
   codigo: string;
   descripcion: string;
   id_tipo_dte: number | null;
+  encabezado_linea1: string | null;
+  encabezado_linea2: string | null;
+  logo_ancho: number | null;
+  logo_alto: number | null;
+  dias_validez: number;
   activo: boolean;
 }
 
@@ -85,6 +90,55 @@ const columnsTipo: ColumnConfig<TipoPresupuesto>[] = [
       optionsKey: 'tipos_dte',
       placeholder: 'Seleccione tipo DTE',
     },
+  },
+  {
+    key: 'encabezado_linea1',
+    header: 'Encabezado línea 1',
+    dataType: 'string',
+    required: false,
+    usage: { grid: { visible: false }, form: { visible: true, editable: true, colSpan: 2 } },
+    editor: {
+      type: 'text',
+      placeholder: 'Ej: Taller Automotriz',
+      validation: { maxLength: 150 },
+    },
+  },
+  {
+    key: 'encabezado_linea2',
+    header: 'Encabezado línea 2',
+    dataType: 'string',
+    required: false,
+    usage: { grid: { visible: false }, form: { visible: true, editable: true, colSpan: 2 } },
+    editor: {
+      type: 'text',
+      placeholder: 'Ej: BUR-SERVICE',
+      validation: { maxLength: 150 },
+    },
+  },
+  {
+    key: 'logo_ancho',
+    header: 'Logo ancho (px)',
+    dataType: 'number',
+    required: false,
+    usage: { grid: { visible: false }, form: { visible: true, editable: true, colSpan: 1 } },
+    editor: { type: 'number', placeholder: '120', min: 20, max: 300 },
+  },
+  {
+    key: 'logo_alto',
+    header: 'Logo alto (px)',
+    dataType: 'number',
+    required: false,
+    usage: { grid: { visible: false }, form: { visible: true, editable: true, colSpan: 1 } },
+    editor: { type: 'number', placeholder: '60', min: 20, max: 200 },
+  },
+  {
+    key: 'dias_validez',
+    header: 'Días validez presupuesto',
+    dataType: 'number',
+    required: false,
+    defaultValue: 15,
+    usage: { grid: { visible: false }, form: { visible: true, editable: true, colSpan: 1 } },
+    editor: { type: 'number', placeholder: '15', min: 1 },
   },
   {
     key: 'activo',

@@ -23,14 +23,17 @@ interface GrupoDoc {
 
 interface PresupuestoDocumentoData {
   empresa: {
-    razon_social:    string;
-    nombre_fantasia: string | null;
-    giro:            string | null;
-    direccion:       string | null;
-    telefono:        string | null;
-    email:           string | null;
-    porcentaje_iva:  number;
+    razon_social:         string;
+    nombre_fantasia:      string | null;
+    giro:                 string | null;
+    direccion:            string | null;
+    direccion_referencia: string | null;
+    telefono:             string | null;
+    email:                string | null;
+    porcentaje_iva:       number;
   };
+  tipo_presupuesto: TipoPresupuestoDoc | null;
+  logo:             LogoDoc | null;
   encabezado: {
     numero:            number | null;
     fecha_presupuesto: string | null;
@@ -78,12 +81,32 @@ function fmtFechaCorta(s: string | null | undefined): string {
   return new Date(s + 'T12:00:00').toLocaleDateString('es-CL');
 }
 
+interface TipoPresupuestoDoc {
+  encabezado_linea1: string | null;
+  encabezado_linea2: string | null;
+  logo_ancho:        number | null;
+  logo_alto:         number | null;
+  dias_validez:      number | null;
+}
+
+interface LogoDoc {
+  mime_type: string;
+  archivo:   string;
+}
+
 // ─── Template V3 ─────────────────────────────────────────────────────────────
 
 export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocumentoData> {
 
   buildHtml(data: PresupuestoDocumentoData): string {
-    const { empresa, encabezado: enc, cliente: cli, vehiculo: veh, grupos, subtotales } = data;
+    const { empresa, tipo_presupuesto: tp, logo, encabezado: enc, cliente: cli, vehiculo: veh, grupos, subtotales } = data;
+
+    // ── Datos de encabezado y logo ────────────────────────────────────────
+    const enc1       = tp?.encabezado_linea1 ?? null;
+    const enc2       = tp?.encabezado_linea2 ?? null;
+    const logoAncho  = tp?.logo_ancho ?? 100;
+    const logoAlto   = tp?.logo_alto  ?? 60;
+    const diasValid  = tp?.dias_validez ?? 15;
 
     // ── Separar grupos por columna ────────────────────────────────────────
     const leftGrupos  = grupos.filter(g => g.col_doc === 1);
@@ -148,8 +171,8 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
     </tr>`;
       }
       if (r.isHeader) {
-        // Sub-encabezado derecho — solo la celda derecha con estilo thead
-        return `    <tr>
+        // Sub-encabezado derecho — celdas izq. con alternancia normal, solo 3ra celda con estilo thead
+        return `    <tr class="${isEven ? 'row-even' : 'row-odd'}">
       <td class="td-left"></td>
       <td class="td-price"></td>
       <td class="subhdr-right">${esc(r.text)}</td>
@@ -171,16 +194,33 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
         <td class="tot-val">${fmt(s.monto)}</td>
       </tr>`).join('\n');
 
-    const subtotal   = enc.neto + enc.exento;
-    const hayIva     = enc.porcentaje_iva > 0 && enc.iva > 0;
-    const giroLineas = (empresa.giro ?? '').split(/[\n|]/).map(l => l.trim()).filter(Boolean);
-    const numStr     = enc.numero != null ? String(enc.numero).padStart(4, '0') : '----';
+    const subtotal  = enc.neto + enc.exento;
+    const hayIva    = enc.porcentaje_iva > 0 && enc.iva > 0;
+    const numStr    = enc.numero != null ? String(enc.numero).padStart(4, '0') : '----';
 
-    const empresaContacto = [
-      empresa.direccion,
-      empresa.telefono ? `Tel: ${empresa.telefono}` : null,
-      empresa.email,
-    ].filter(Boolean).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+    // ── Logo HTML ──────────────────────────────────────────────────────────
+    const logoHtml = logo
+      ? `<img src="data:${esc(logo.mime_type)};base64,${logo.archivo}" style="width:${logoAncho}px;height:${logoAlto}px;object-fit:contain;flex-shrink:0;margin-right:12px;">`
+      : '';
+
+    // ── Títulos de encabezado ──────────────────────────────────────────────
+    const titulos = [enc1, enc2].filter(Boolean);
+    const titulosHtml = titulos.map((t, i) =>
+      i === 0
+        ? `<div class="hdr-enc1">${esc(t!)}</div>`
+        : `<div class="hdr-enc2">${esc(t!)}</div>`
+    ).join('');
+
+    // ── Dirección y contacto ───────────────────────────────────────────────
+    const addrLines = [
+      empresa.direccion        ? esc(empresa.direccion)            : null,
+      empresa.direccion_referencia ? `<span class="hdr-ref">${esc(empresa.direccion_referencia)}</span>` : null,
+    ].filter(Boolean).join('<br>');
+
+    const contactLines = [
+      empresa.telefono ? `Tel: ${esc(empresa.telefono)}` : null,
+      empresa.email    ? esc(empresa.email)              : null,
+    ].filter(Boolean).join('<br>');
 
     return `<!DOCTYPE html>
 <html lang="es">
@@ -198,37 +238,48 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
   }
 
   /* ── HEADER ──────────────────────────────────────── */
-  .hdr-wrap {
+  /* Fila superior: logo + títulos centrados + caja N° */
+  .hdr-top {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 2.5px solid #1B3A5C;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
+    align-items: center;
+    margin-bottom: 6px;
   }
-  .hdr-empresa { flex: 1; padding-right: 16px; }
-  .co-name {
-    font-size: 15pt;
+  .hdr-titles {
+    flex: 1;
+    text-align: center;
+    padding: 0 10px;
+  }
+  .hdr-enc1 {
+    font-size: 14pt;
     font-weight: bold;
     color: #1B3A5C;
     line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
-  .co-fant {
-    font-size: 9.5pt;
+  .hdr-enc2 {
+    font-size: 10pt;
     font-style: italic;
     color: #4A5568;
-    margin-top: 1px;
+    line-height: 1.3;
   }
-  .co-giro {
-    font-size: 8pt;
-    color: #4A5568;
-    margin-top: 2px;
+  /* Línea divisoria */
+  .hdr-divider {
+    border: none;
+    border-top: 2.5px solid #1B3A5C;
+    margin: 4px 0;
   }
-  .co-contacto {
+  /* Fila inferior: dirección izq. + contacto der. */
+  .hdr-bottom {
+    display: flex;
+    justify-content: space-between;
     font-size: 7.5pt;
-    color: #6B7280;
-    margin-top: 4px;
+    color: #4A5568;
+    margin-bottom: 8px;
+    line-height: 1.5;
   }
+  .hdr-ref { color: #6B7280; }
+  .hdr-contact { text-align: right; }
 
   /* Caja del número de presupuesto */
   .hdr-num-box {
@@ -416,12 +467,10 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
 <body>
 
 <!-- ═══ HEADER ══════════════════════════════════════════════════════════════ -->
-<div class="hdr-wrap">
-  <div class="hdr-empresa">
-    <div class="co-name">${esc(empresa.razon_social)}</div>
-    ${empresa.nombre_fantasia ? `<div class="co-fant">${esc(empresa.nombre_fantasia)}</div>` : ''}
-    ${giroLineas.length > 0 ? `<div class="co-giro">${giroLineas.map(l => esc(l)).join(' · ')}</div>` : ''}
-    ${empresaContacto ? `<div class="co-contacto">${empresaContacto}</div>` : ''}
+<div class="hdr-top">
+  ${logoHtml}
+  <div class="hdr-titles">
+    ${titulosHtml}
   </div>
   <div class="hdr-num-box">
     <div class="num-label">Presupuesto</div>
@@ -431,6 +480,11 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
       ${enc.fecha_entrega ? `<span>Entrega:</span> ${fmtFechaCorta(enc.fecha_entrega)}` : ''}
     </div>
   </div>
+</div>
+<hr class="hdr-divider">
+<div class="hdr-bottom">
+  <div class="hdr-addr">${addrLines}</div>
+  <div class="hdr-contact">${contactLines}</div>
 </div>
 
 <!-- ═══ CLIENTE / VEHÍCULO ═══════════════════════════════════════════════════ -->
@@ -488,7 +542,7 @@ ${subtotalesHtml}
 
 <!-- ═══ FOOTER ════════════════════════════════════════════════════════════════ -->
 <div class="footer">
-  Presupuesto válido por 15 días a partir de la fecha de emisión.&nbsp;&nbsp;·&nbsp;&nbsp;Precios en pesos chilenos (CLP).
+  Presupuesto válido por ${diasValid} días a partir de la fecha de emisión.&nbsp;&nbsp;·&nbsp;&nbsp;Precios en pesos chilenos (CLP).
 </div>
 
 </body>

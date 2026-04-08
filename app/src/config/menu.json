@@ -93,6 +93,10 @@
         {
           "label": "Tipos Presupuesto",
           "href": "/mantenedores/tipos-presupuesto"
+        },
+        {
+          "label": "Logos Empresa",
+          "href": "/mantenedores/empresa-logo"
         }
       ]
     }

@@ -23,6 +23,7 @@ interface Empresa {
   id_region: number;
   id_comuna: number | null;
   direccion: string | null;
+  direccion_referencia: string | null;
   email: string | null;
   telefono: string | null;
   numero_resolucion_sii: number | null;
@@ -182,6 +183,18 @@ const columns: ColumnConfig<Empresa>[] = [
     editor: {
       type: 'text',
       placeholder: 'Dirección completa',
+      validation: { maxLength: 300 },
+    },
+  },
+  {
+    key: 'direccion_referencia',
+    header: 'Referencia dirección',
+    dataType: 'string',
+    required: false,
+    usage: { grid: { visible: false }, form: { visible: true, editable: true, colSpan: 2 } },
+    editor: {
+      type: 'text',
+      placeholder: 'Ej: Local 3, Galería Central',
       validation: { maxLength: 300 },
     },
   },

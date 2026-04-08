@@ -1263,6 +1263,7 @@ CREATE TABLE IF NOT EXISTS empresas (
   act_eco               VARCHAR(50),
   id_comuna             BIGINT                REFERENCES comunas(id) ON DELETE RESTRICT,
   direccion             VARCHAR(300),
+  direccion_referencia  VARCHAR(300),
   email                 VARCHAR(300),
   telefono              VARCHAR(20),
   numero_resolucion_sii INTEGER,
@@ -1277,6 +1278,8 @@ CREATE TABLE IF NOT EXISTS empresas (
 );
 
 CREATE INDEX IF NOT EXISTS idx_empresas_id_comuna ON empresas(id_comuna);
+
+--ALTER TABLE empresas ADD COLUMN IF NOT EXISTS direccion_referencia VARCHAR(300);
 
 CREATE OR REPLACE TRIGGER trg_empresas_updated_at
   BEFORE UPDATE ON empresas
@@ -1296,8 +1299,9 @@ DECLARE
   v_giro              TEXT     := NULLIF(TRIM(p_data->>'giro'),            '');
   v_act_eco           TEXT     := NULLIF(TRIM(p_data->>'act_eco'),         '');
   v_id_comuna         BIGINT   := NULLIF((p_data->>'id_comuna')::BIGINT,   0);
-  v_direccion         TEXT     := NULLIF(TRIM(p_data->>'direccion'),       '');
-  v_email             TEXT     := NULLIF(TRIM(p_data->>'email'),           '');
+  v_direccion         TEXT     := NULLIF(TRIM(p_data->>'direccion'),            '');
+  v_dir_referencia    TEXT     := NULLIF(TRIM(p_data->>'direccion_referencia'), '');
+  v_email             TEXT     := NULLIF(TRIM(p_data->>'email'),                '');
   v_telefono          TEXT     := NULLIF(TRIM(p_data->>'telefono'),        '');
   v_porcentaje_iva    NUMERIC  := NULLIF(p_data->>'porcentaje_iva', '')::NUMERIC;
   v_numero_resolucion_sii INTEGER := NULLIF((p_data->>'numero_resolucion_sii')::INTEGER, 0);
@@ -1316,7 +1320,7 @@ BEGIN
     FROM (
       SELECT e.id, e.codigo, e.rut, e.razon_social, e.nombre_fantasia,
              e.giro, e.act_eco, e.id_comuna, com.id_region,
-             e.direccion, e.email, e.telefono,
+             e.direccion, e.direccion_referencia, e.email, e.telefono,
              e.numero_resolucion_sii, e.fecha_resolucion_sii,
              e.porcentaje_iva, e.ambiente, e.activo, e.created_at, e.updated_at
       FROM empresas e
@@ -1332,7 +1336,7 @@ BEGIN
     FROM (
       SELECT e.id, e.codigo, e.rut, e.razon_social, e.nombre_fantasia,
              e.giro, e.act_eco, e.id_comuna, com.id_region,
-             e.direccion, e.email, e.telefono,
+             e.direccion, e.direccion_referencia, e.email, e.telefono,
              e.numero_resolucion_sii, e.fecha_resolucion_sii,
              e.porcentaje_iva, e.ambiente, e.activo, e.created_at, e.updated_at
       FROM empresas e
@@ -1347,12 +1351,12 @@ BEGIN
   ELSIF p_opcion = 3 THEN
     INSERT INTO empresas
       (codigo, rut, razon_social, nombre_fantasia, giro, act_eco,
-       id_comuna, direccion, email, telefono,
+       id_comuna, direccion, direccion_referencia, email, telefono,
        numero_resolucion_sii, fecha_resolucion_sii, porcentaje_iva,
        ambiente, activo)
     VALUES
       (v_codigo, v_rut, v_razon_social, v_nombre_fantasia, v_giro, v_act_eco,
-       v_id_comuna, v_direccion, v_email, v_telefono,
+       v_id_comuna, v_direccion, v_dir_referencia, v_email, v_telefono,
        v_numero_resolucion_sii, v_fecha_resolucion_sii,
        COALESCE(v_porcentaje_iva, 19.00),
        COALESCE(v_ambiente, 1), COALESCE(v_activo, TRUE))
@@ -1364,7 +1368,7 @@ BEGIN
     FROM (
       SELECT e.id, e.codigo, e.rut, e.razon_social, e.nombre_fantasia,
              e.giro, e.act_eco, e.id_comuna, com.id_region,
-             e.direccion, e.email, e.telefono,
+             e.direccion, e.direccion_referencia, e.email, e.telefono,
              e.numero_resolucion_sii, e.fecha_resolucion_sii,
              e.porcentaje_iva, e.ambiente, e.activo, e.created_at, e.updated_at
       FROM empresas e
@@ -1382,8 +1386,9 @@ BEGIN
       giro                  = COALESCE(v_giro,            giro),
       act_eco               = COALESCE(v_act_eco,         act_eco),
       id_comuna             = CASE WHEN p_data ? 'id_comuna'              THEN v_id_comuna             ELSE id_comuna             END,
-      direccion             = COALESCE(v_direccion,       direccion),
-      email                 = CASE WHEN p_data ? 'email'                  THEN v_email                 ELSE email                 END,
+      direccion             = COALESCE(v_direccion,        direccion),
+      direccion_referencia  = CASE WHEN p_data ? 'direccion_referencia' THEN v_dir_referencia ELSE direccion_referencia END,
+      email                 = CASE WHEN p_data ? 'email'                THEN v_email          ELSE email                END,
       telefono              = CASE WHEN p_data ? 'telefono'               THEN v_telefono              ELSE telefono              END,
       numero_resolucion_sii = CASE WHEN p_data ? 'numero_resolucion_sii'  THEN v_numero_resolucion_sii ELSE numero_resolucion_sii END,
       fecha_resolucion_sii  = CASE WHEN p_data ? 'fecha_resolucion_sii'   THEN v_fecha_resolucion_sii  ELSE fecha_resolucion_sii  END,
@@ -1401,7 +1406,7 @@ BEGIN
     FROM (
       SELECT e.id, e.codigo, e.rut, e.razon_social, e.nombre_fantasia,
              e.giro, e.act_eco, e.id_comuna, com.id_region,
-             e.direccion, e.email, e.telefono,
+             e.direccion, e.direccion_referencia, e.email, e.telefono,
              e.numero_resolucion_sii, e.fecha_resolucion_sii,
              e.porcentaje_iva, e.ambiente, e.activo, e.created_at, e.updated_at
       FROM empresas e
@@ -1719,18 +1724,29 @@ $$ LANGUAGE plpgsql;
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS tipos_presupuesto (
-  id          BIGINT       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  id_empresa  BIGINT       NOT NULL REFERENCES empresas(id) ON DELETE RESTRICT,
-  codigo      VARCHAR(20)  NOT NULL,
-  descripcion VARCHAR(200) NOT NULL,
-  id_tipo_dte BIGINT                REFERENCES tipos_dte(id) ON DELETE RESTRICT,
-  activo      BOOLEAN      NOT NULL DEFAULT TRUE,
-  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  id                BIGINT       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  id_empresa        BIGINT       NOT NULL REFERENCES empresas(id) ON DELETE RESTRICT,
+  codigo            VARCHAR(20)  NOT NULL,
+  descripcion       VARCHAR(200) NOT NULL,
+  encabezado_linea1 VARCHAR(150),
+  encabezado_linea2 VARCHAR(150),
+  logo_ancho        SMALLINT,
+  logo_alto         SMALLINT,
+  dias_validez      SMALLINT     NOT NULL DEFAULT 15,
+  id_tipo_dte       BIGINT                REFERENCES tipos_dte(id) ON DELETE RESTRICT,
+  activo            BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_tipos_presupuesto_empresa_codigo UNIQUE (id_empresa, codigo)
 );
 
 CREATE INDEX IF NOT EXISTS idx_tipos_presupuesto_id_empresa ON tipos_presupuesto(id_empresa);
+
+--ALTER TABLE tipos_presupuesto ADD COLUMN IF NOT EXISTS encabezado_linea1 VARCHAR(150);
+--ALTER TABLE tipos_presupuesto ADD COLUMN IF NOT EXISTS encabezado_linea2 VARCHAR(150);
+--ALTER TABLE tipos_presupuesto ADD COLUMN IF NOT EXISTS logo_ancho        SMALLINT;
+--ALTER TABLE tipos_presupuesto ADD COLUMN IF NOT EXISTS logo_alto         SMALLINT;
+--ALTER TABLE tipos_presupuesto ADD COLUMN IF NOT EXISTS dias_validez      SMALLINT NOT NULL DEFAULT 15;
 
 CREATE OR REPLACE TRIGGER trg_tipos_presupuesto_updated_at
   BEFORE UPDATE ON tipos_presupuesto
@@ -1742,13 +1758,18 @@ CREATE OR REPLACE FUNCTION sp_tipos_presupuesto(
 )
 RETURNS JSON AS $$
 DECLARE
-  v_id          BIGINT  := (p_data->>'id')::BIGINT;
-  v_id_empresa  BIGINT  := NULLIF((p_data->>'id_empresa')::BIGINT, 0);
-  v_codigo      TEXT    := NULLIF(TRIM(p_data->>'codigo'),      '');
-  v_descripcion TEXT    := NULLIF(TRIM(p_data->>'descripcion'), '');
-  v_id_tipo_dte BIGINT  := NULLIF((p_data->>'id_tipo_dte')::BIGINT, 0);
-  v_activo      BOOLEAN := (p_data->>'activo')::BOOLEAN;
-  v_id_nuevo    BIGINT;
+  v_id               BIGINT   := (p_data->>'id')::BIGINT;
+  v_id_empresa       BIGINT   := NULLIF((p_data->>'id_empresa')::BIGINT, 0);
+  v_codigo           TEXT     := NULLIF(TRIM(p_data->>'codigo'),           '');
+  v_descripcion      TEXT     := NULLIF(TRIM(p_data->>'descripcion'),      '');
+  v_id_tipo_dte      BIGINT   := NULLIF((p_data->>'id_tipo_dte')::BIGINT,  0);
+  v_enc_linea1       TEXT     := NULLIF(TRIM(p_data->>'encabezado_linea1'), '');
+  v_enc_linea2       TEXT     := NULLIF(TRIM(p_data->>'encabezado_linea2'), '');
+  v_logo_ancho       SMALLINT := NULLIF((p_data->>'logo_ancho')::SMALLINT,  0);
+  v_logo_alto        SMALLINT := NULLIF((p_data->>'logo_alto')::SMALLINT,   0);
+  v_dias_validez     SMALLINT := NULLIF((p_data->>'dias_validez')::SMALLINT, 0);
+  v_activo           BOOLEAN  := (p_data->>'activo')::BOOLEAN;
+  v_id_nuevo         BIGINT;
   v_result      JSON;
 BEGIN
 
@@ -1758,7 +1779,9 @@ BEGIN
       'data',    COALESCE(json_agg(t ORDER BY t.descripcion), '[]'::json)
     ) INTO v_result
     FROM (
-      SELECT id, id_empresa, codigo, descripcion, id_tipo_dte, activo, created_at, updated_at
+      SELECT id, id_empresa, codigo, descripcion, id_tipo_dte,
+             encabezado_linea1, encabezado_linea2, logo_ancho, logo_alto, dias_validez,
+             activo, created_at, updated_at
       FROM tipos_presupuesto
       WHERE id_empresa = v_id_empresa
     ) t;
@@ -1770,7 +1793,9 @@ BEGIN
       'data',    row_to_json(t.*)
     ) INTO v_result
     FROM (
-      SELECT id, id_empresa, codigo, descripcion, id_tipo_dte, activo, created_at, updated_at
+      SELECT id, id_empresa, codigo, descripcion, id_tipo_dte,
+             encabezado_linea1, encabezado_linea2, logo_ancho, logo_alto, dias_validez,
+             activo, created_at, updated_at
       FROM tipos_presupuesto WHERE id = v_id
     ) t;
     IF v_result IS NULL THEN
@@ -1779,25 +1804,37 @@ BEGIN
     RETURN v_result;
 
   ELSIF p_opcion = 3 THEN
-    INSERT INTO tipos_presupuesto (id_empresa, codigo, descripcion, id_tipo_dte, activo)
-    VALUES (v_id_empresa, v_codigo, v_descripcion, v_id_tipo_dte, COALESCE(v_activo, TRUE))
+    INSERT INTO tipos_presupuesto
+      (id_empresa, codigo, descripcion, id_tipo_dte,
+       encabezado_linea1, encabezado_linea2, logo_ancho, logo_alto, dias_validez, activo)
+    VALUES
+      (v_id_empresa, v_codigo, v_descripcion, v_id_tipo_dte,
+       v_enc_linea1, v_enc_linea2, v_logo_ancho, v_logo_alto,
+       COALESCE(v_dias_validez, 15), COALESCE(v_activo, TRUE))
     RETURNING id INTO v_id_nuevo;
     SELECT json_build_object(
       'message', 'Tipo de presupuesto creado correctamente',
       'data',    row_to_json(t.*)
     ) INTO v_result
     FROM (
-      SELECT id, id_empresa, codigo, descripcion, id_tipo_dte, activo, created_at, updated_at
+      SELECT id, id_empresa, codigo, descripcion, id_tipo_dte,
+             encabezado_linea1, encabezado_linea2, logo_ancho, logo_alto, dias_validez,
+             activo, created_at, updated_at
       FROM tipos_presupuesto WHERE id = v_id_nuevo
     ) t;
     RETURN v_result;
 
   ELSIF p_opcion = 4 THEN
     UPDATE tipos_presupuesto SET
-      codigo      = COALESCE(v_codigo,      codigo),
-      descripcion = COALESCE(v_descripcion, descripcion),
-      id_tipo_dte = CASE WHEN p_data ? 'id_tipo_dte' THEN v_id_tipo_dte ELSE id_tipo_dte END,
-      activo      = COALESCE(v_activo,      activo)
+      codigo             = COALESCE(v_codigo,       codigo),
+      descripcion        = COALESCE(v_descripcion,  descripcion),
+      id_tipo_dte        = CASE WHEN p_data ? 'id_tipo_dte'        THEN v_id_tipo_dte  ELSE id_tipo_dte        END,
+      encabezado_linea1  = CASE WHEN p_data ? 'encabezado_linea1' THEN v_enc_linea1   ELSE encabezado_linea1  END,
+      encabezado_linea2  = CASE WHEN p_data ? 'encabezado_linea2' THEN v_enc_linea2   ELSE encabezado_linea2  END,
+      logo_ancho         = CASE WHEN p_data ? 'logo_ancho'        THEN v_logo_ancho   ELSE logo_ancho         END,
+      logo_alto          = CASE WHEN p_data ? 'logo_alto'         THEN v_logo_alto    ELSE logo_alto          END,
+      dias_validez       = COALESCE(v_dias_validez, dias_validez),
+      activo             = COALESCE(v_activo,       activo)
     WHERE id = v_id;
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Tipo de presupuesto con id % no encontrado', v_id;
@@ -1807,7 +1844,9 @@ BEGIN
       'data',    row_to_json(t.*)
     ) INTO v_result
     FROM (
-      SELECT id, id_empresa, codigo, descripcion, id_tipo_dte, activo, created_at, updated_at
+      SELECT id, id_empresa, codigo, descripcion, id_tipo_dte,
+             encabezado_linea1, encabezado_linea2, logo_ancho, logo_alto, dias_validez,
+             activo, created_at, updated_at
       FROM tipos_presupuesto WHERE id = v_id
     ) t;
     RETURN v_result;
@@ -1830,7 +1869,128 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- 15: tipos_presupuesto_detalles  (FK → tipos_presupuesto)
+-- 15: empresa_logo  (FK → empresas)
+--     Almacena logos de empresa por tipo (ej: 'presupuesto').
+--     archivo: base64 puro del binario de imagen.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS empresa_logo (
+  id          BIGINT       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  id_empresa  BIGINT       NOT NULL REFERENCES empresas(id) ON DELETE RESTRICT,
+  tipo        VARCHAR(20)  NOT NULL DEFAULT 'presupuesto',
+  nombre_archivo VARCHAR(300) NOT NULL,
+  mime_type   VARCHAR(20)  NOT NULL CHECK (mime_type IN ('image/png', 'image/jpeg')),
+  archivo     TEXT         NOT NULL,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_empresa_logo_empresa_tipo UNIQUE (id_empresa, tipo)
+);
+
+CREATE INDEX IF NOT EXISTS idx_empresa_logo_id_empresa ON empresa_logo(id_empresa);
+
+CREATE OR REPLACE TRIGGER trg_empresa_logo_updated_at
+  BEFORE UPDATE ON empresa_logo
+  FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+
+CREATE OR REPLACE FUNCTION sp_empresa_logo(
+  p_opcion INTEGER,
+  p_data   JSONB DEFAULT '{}'
+)
+RETURNS JSON AS $$
+DECLARE
+  v_id           BIGINT   := (p_data->>'id')::BIGINT;
+  v_id_empresa   BIGINT   := NULLIF((p_data->>'id_empresa')::BIGINT, 0);
+  v_tipo         TEXT     := NULLIF(TRIM(p_data->>'tipo'),          '');
+  v_nombre_arch  TEXT     := NULLIF(TRIM(p_data->>'nombre_archivo'), '');
+  v_mime_type    TEXT     := NULLIF(TRIM(p_data->>'mime_type'),      '');
+  v_archivo      TEXT     := NULLIF(p_data->>'archivo',              '');
+  v_id_nuevo     BIGINT;
+  v_result       JSON;
+BEGIN
+
+  IF p_opcion = 1 THEN
+    SELECT json_build_object(
+      'message', 'Logos obtenidos correctamente',
+      'data',    COALESCE(json_agg(l ORDER BY l.tipo), '[]'::json)
+    ) INTO v_result
+    FROM (
+      SELECT id, id_empresa, tipo, nombre_archivo, mime_type, archivo, created_at, updated_at
+      FROM empresa_logo
+      WHERE id_empresa = v_id_empresa
+    ) l;
+    RETURN v_result;
+
+  ELSIF p_opcion = 2 THEN
+    SELECT json_build_object(
+      'message', 'Logo obtenido correctamente',
+      'data',    row_to_json(l.*)
+    ) INTO v_result
+    FROM (
+      SELECT id, id_empresa, tipo, nombre_archivo, mime_type, archivo, created_at, updated_at
+      FROM empresa_logo WHERE id = v_id
+    ) l;
+    IF v_result IS NULL THEN
+      RAISE EXCEPTION 'Logo con id % no encontrado', v_id;
+    END IF;
+    RETURN v_result;
+
+  ELSIF p_opcion = 3 THEN
+    INSERT INTO empresa_logo (id_empresa, tipo, nombre_archivo, mime_type, archivo)
+    VALUES (v_id_empresa, COALESCE(v_tipo, 'presupuesto'), v_nombre_arch, v_mime_type, v_archivo)
+    ON CONFLICT (id_empresa, tipo) DO UPDATE
+      SET nombre_archivo = EXCLUDED.nombre_archivo,
+          mime_type      = EXCLUDED.mime_type,
+          archivo        = EXCLUDED.archivo,
+          updated_at     = NOW()
+    RETURNING id INTO v_id_nuevo;
+    SELECT json_build_object(
+      'message', 'Logo guardado correctamente',
+      'data',    row_to_json(l.*)
+    ) INTO v_result
+    FROM (
+      SELECT id, id_empresa, tipo, nombre_archivo, mime_type, archivo, created_at, updated_at
+      FROM empresa_logo WHERE id = v_id_nuevo
+    ) l;
+    RETURN v_result;
+
+  ELSIF p_opcion = 4 THEN
+    UPDATE empresa_logo SET
+      nombre_archivo = COALESCE(v_nombre_arch, nombre_archivo),
+      mime_type      = COALESCE(v_mime_type,   mime_type),
+      archivo        = COALESCE(v_archivo,      archivo)
+    WHERE id = v_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Logo con id % no encontrado', v_id;
+    END IF;
+    SELECT json_build_object(
+      'message', 'Logo actualizado correctamente',
+      'data',    row_to_json(l.*)
+    ) INTO v_result
+    FROM (
+      SELECT id, id_empresa, tipo, nombre_archivo, mime_type, archivo, created_at, updated_at
+      FROM empresa_logo WHERE id = v_id
+    ) l;
+    RETURN v_result;
+
+  ELSIF p_opcion = 5 THEN
+    DELETE FROM empresa_logo WHERE id = v_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Logo con id % no encontrado', v_id;
+    END IF;
+    RETURN json_build_object(
+      'message', 'Logo eliminado correctamente',
+      'data',    json_build_object('id', v_id)
+    );
+
+  ELSE
+    RAISE EXCEPTION 'Opción inválida: %', p_opcion;
+  END IF;
+
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- 16: tipos_presupuesto_detalles  (FK → tipos_presupuesto)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS tipos_presupuesto_detalles (
@@ -2634,11 +2794,30 @@ BEGIN
           SELECT row_to_json(e.*)
           FROM (
             SELECT em.razon_social, em.nombre_fantasia, em.giro,
-                   em.direccion, em.telefono, em.email, em.porcentaje_iva
+                   em.direccion, em.direccion_referencia, em.telefono, em.email, em.porcentaje_iva
             FROM empresas em
             JOIN presupuestos pr ON pr.id_empresa = em.id
             WHERE pr.id = v_id
           ) e
+        ),
+        'tipo_presupuesto', (
+          SELECT row_to_json(tp.*)
+          FROM (
+            SELECT t.encabezado_linea1, t.encabezado_linea2,
+                   t.logo_ancho, t.logo_alto, t.dias_validez
+            FROM tipos_presupuesto t
+            JOIN presupuestos pr ON pr.id_tipo_presupuesto = t.id
+            WHERE pr.id = v_id
+          ) tp
+        ),
+        'logo', (
+          SELECT row_to_json(lg.*)
+          FROM (
+            SELECT el.mime_type, el.archivo
+            FROM empresa_logo el
+            JOIN presupuestos pr ON pr.id_empresa = el.id_empresa
+            WHERE pr.id = v_id AND el.tipo = 'presupuesto'
+          ) lg
         ),
         'encabezado', (
           SELECT row_to_json(enc.*)
@@ -2679,7 +2858,7 @@ BEGIN
             SELECT
               tpd.orden,
               tpd.col_doc,
-              tpd.nombre_subtotal AS header,
+              tpd.descripcion AS header,
               tpd.cant_max_det,
               COALESCE(
                 (SELECT json_agg(

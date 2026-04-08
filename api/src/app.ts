@@ -20,6 +20,7 @@ import { certificadosDteRouter } from './modules/empresas/certificados-dte/certi
 import { foliosCafRouter } from './modules/empresas/folios-caf/folios-caf.routes';
 import { tiposPresupuestoRouter } from './modules/empresas/tipos-presupuesto/tipos-presupuesto.routes';
 import { tiposPresupuestoDetallesRouter } from './modules/empresas/tipos-presupuesto-detalles/tipos-presupuesto-detalles.routes';
+import { empresaLogoRouter } from './modules/empresas/empresa-logo/empresa-logo.routes';
 import { presupuestosRouter } from './modules/presupuestos/presupuestos.routes';
 import type { ApiResponse } from './types';
 
@@ -78,6 +79,7 @@ app.use('/api/certificados-dte',              certificadosDteRouter);
 app.use('/api/folios-caf',                    foliosCafRouter);
 app.use('/api/tipos-presupuesto',             tiposPresupuestoRouter);
 app.use('/api/tipos-presupuesto-detalles',    tiposPresupuestoDetallesRouter);
+app.use('/api/empresa-logo',                  empresaLogoRouter);
 // Presupuestos
 app.use('/api/presupuestos',                  presupuestosRouter);
 
