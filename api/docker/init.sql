@@ -2268,6 +2268,9 @@ CREATE TABLE IF NOT EXISTS presupuestos (
   iva                     NUMERIC(14,2) NOT NULL DEFAULT 0,
   bruto                   NUMERIC(14,2) NOT NULL DEFAULT 0,
 
+  -- Observación libre
+  observacion             VARCHAR(500),
+
   -- Flags (ocultos en vista)
   sw_facturar             BOOLEAN NOT NULL DEFAULT FALSE,
   sw_mismo_cliente        BOOLEAN NOT NULL DEFAULT TRUE,
@@ -2277,6 +2280,8 @@ CREATE TABLE IF NOT EXISTS presupuestos (
 
   UNIQUE (id_empresa, numero)
 );
+
+--ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS observacion VARCHAR(500);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_presupuestos_empresa_numero
   ON presupuestos (id_empresa, numero);
@@ -2450,6 +2455,9 @@ DECLARE
   v_iva             NUMERIC  := NULLIF(p_data->>'iva',            '')::NUMERIC;
   v_bruto           NUMERIC  := NULLIF(p_data->>'bruto',          '')::NUMERIC;
 
+  -- Observación
+  v_observacion     TEXT     := NULLIF(TRIM(p_data->>'observacion'), '');
+
   -- Flags
   v_sw_facturar     BOOLEAN  := NULLIF(p_data->>'sw_facturar',    '')::BOOLEAN;
   v_sw_mismo_cli    BOOLEAN  := NULLIF(p_data->>'sw_mismo_cliente','')::BOOLEAN;
@@ -2615,7 +2623,7 @@ BEGIN
       id_contribuyente, contribuyente_rut, contribuyente_nombre,
         contribuyente_giro, contribuyente_id_comuna, contribuyente_direccion,
       neto, exento, porcentaje_iva, iva, bruto,
-      sw_facturar, sw_mismo_cliente
+      sw_facturar, sw_mismo_cliente, observacion
     ) VALUES (
       v_id_empresa, v_numero_nuevo, v_folio,
       COALESCE(v_fecha_registro, CURRENT_DATE),
@@ -2631,7 +2639,8 @@ BEGIN
       COALESCE(v_porcentaje_iva, 19.00),
       COALESCE(v_iva,   0), COALESCE(v_bruto,  0),
       COALESCE(v_sw_facturar,  FALSE),
-      COALESCE(v_sw_mismo_cli, TRUE)
+      COALESCE(v_sw_mismo_cli, TRUE),
+      v_observacion
     )
     RETURNING id INTO v_id_nuevo;
 
@@ -2679,7 +2688,8 @@ BEGIN
       iva                     = COALESCE(v_iva,              iva),
       bruto                   = COALESCE(v_bruto,            bruto),
       sw_facturar             = COALESCE(v_sw_facturar,      sw_facturar),
-      sw_mismo_cliente        = COALESCE(v_sw_mismo_cli,     sw_mismo_cliente)
+      sw_mismo_cliente        = COALESCE(v_sw_mismo_cli,     sw_mismo_cliente),
+      observacion             = CASE WHEN p_data::jsonb ? 'observacion' THEN v_observacion ELSE observacion END
     WHERE id = v_id AND id_empresa = v_id_empresa;
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Presupuesto con id % no encontrado', v_id;
@@ -2823,7 +2833,8 @@ BEGIN
           SELECT row_to_json(enc.*)
           FROM (
             SELECT pr.numero, pr.fecha_presupuesto, pr.fecha_entrega,
-                   pr.porcentaje_iva, pr.neto, pr.exento, pr.iva, pr.bruto
+                   pr.porcentaje_iva, pr.neto, pr.exento, pr.iva, pr.bruto,
+                   pr.observacion
             FROM presupuestos pr
             WHERE pr.id = v_id
           ) enc

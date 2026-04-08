@@ -56,6 +56,7 @@ function flattenPayload(input: PresupuestoInput): Record<string, unknown> {
     ...(enc.bruto          !== undefined && { bruto:          enc.bruto          }),
     ...(enc.sw_facturar    !== undefined && { sw_facturar:    enc.sw_facturar    }),
     ...(enc.sw_mismo_cliente !== undefined && { sw_mismo_cliente: enc.sw_mismo_cliente }),
+    ...(enc.observacion    !== undefined && { observacion:    enc.observacion    }),
   };
 }
 
@@ -85,6 +86,7 @@ function reconstructPayload(flat: any): object {
       bruto:               flat.bruto,
       sw_facturar:         flat.sw_facturar,
       sw_mismo_cliente:    flat.sw_mismo_cliente,
+      observacion:         flat.observacion ?? null,
       vehiculo: {
         patente:   flat.patente,
         id_marca:  flat.id_marca,

@@ -43,6 +43,7 @@ interface PresupuestoDocumentoData {
     exento:            number;
     iva:               number;
     bruto:             number;
+    observacion:       string | null;
   };
   cliente: {
     rut:       string | null;
@@ -416,6 +417,37 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
     border-right: 1px solid #D0D7DE;
   }
 
+  /* ── OBSERVACIÓN + TOTALES ───────────────────────── */
+  .obs-tot-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 16px;
+  }
+  .obs-box {
+    flex: 1;
+    border: 1px solid #D0D7DE;
+    border-left: 3px solid #1B3A5C;
+    border-radius: 3px;
+    padding: 8px 12px;
+    background: #F9FAFB;
+    height: 86px;
+    overflow: hidden;
+  }
+  .obs-title {
+    font-size: 7pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #1B3A5C;
+    margin-bottom: 5px;
+  }
+  .obs-text {
+    font-size: 8pt;
+    color: #4A5568;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
   /* ── TOTALES ──────────────────────────────────────── */
   .tot-wrap {
     display: flex;
@@ -520,7 +552,11 @@ ${rowsHtml}
 </table>
 
 <!-- ═══ TOTALES ══════════════════════════════════════════════════════════════ -->
-<div class="tot-wrap">
+<div class="${enc.observacion ? 'obs-tot-wrap' : 'tot-wrap'}">
+  ${enc.observacion ? `<div class="obs-box">
+    <div class="obs-title">Observaciones</div>
+    <div class="obs-text">${esc(enc.observacion)}</div>
+  </div>` : ''}
   <table class="tot-tbl">
     <tbody>
 ${subtotalesHtml}

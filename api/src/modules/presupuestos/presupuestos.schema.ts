@@ -37,6 +37,7 @@ const EncabezadoSchema = z.object({
   bruto:                z.coerce.number().optional(),
   sw_facturar:          z.boolean().optional(),
   sw_mismo_cliente:     z.boolean().optional(),
+  observacion:          z.string().max(500).nullable().optional(),
   vehiculo:             VehiculoSchema.optional(),
   cliente:              PersonaSchema.optional(),
   contribuyente:        PersonaSchema.nullable().optional(),

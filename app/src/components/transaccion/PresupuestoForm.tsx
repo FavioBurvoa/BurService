@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
 import {
-  Stack, Group, Paper, Text, Badge, Button, Select, TextInput,
+  Stack, Group, Paper, Text, Badge, Button, Select, TextInput, Textarea,
   Divider, Title, ActionIcon, Tooltip, Loader, Center,
   SimpleGrid, ThemeIcon, Modal, Grid, Box, SegmentedControl,
 } from '@mantine/core';
@@ -471,7 +471,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                 <TextInput
                   label="Folio"
                   placeholder="Ej: F-000123"
-                  value={encabezado.folio}
+                  value={encabezado.folio ?? ''}
                   onChange={(e) => setEncabezadoField('folio', e.currentTarget.value)}
                   size="sm"
                 />
@@ -485,21 +485,21 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                 <TextInput
                   type="date"
                   label="Vencimiento"
-                  value={encabezado.fecha_vencimiento}
+                  value={encabezado.fecha_vencimiento ?? ''}
                   onChange={(e) => setEncabezadoField('fecha_vencimiento', e.currentTarget.value)}
                   size="sm"
                 />
                 <TextInput
                   type="date"
                   label="Fecha Recepción"
-                  value={encabezado.fecha_recepcion}
+                  value={encabezado.fecha_recepcion ?? ''}
                   onChange={(e) => setEncabezadoField('fecha_recepcion', e.currentTarget.value)}
                   size="sm"
                 />
                 <TextInput
                   type="date"
                   label="Fecha Entrega"
-                  value={encabezado.fecha_entrega}
+                  value={encabezado.fecha_entrega ?? ''}
                   onChange={(e) => setEncabezadoField('fecha_entrega', e.currentTarget.value)}
                   size="sm"
                 />
@@ -882,6 +882,23 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
               </div>
             </Paper>
           ))}
+          {/* OBSERVACIÓN */}
+          <SectionCard icon={<IconFileText size={14} />} title="Observación">
+            <Textarea
+              placeholder="Indicaciones adicionales para el cliente..."
+              autosize
+              minRows={3}
+              maxRows={3}
+              maxLength={500}
+              size="sm"
+              value={encabezado.observacion}
+              onChange={(e) => {
+                const lines = e.currentTarget.value.split('\n');
+                setEncabezadoField('observacion', lines.slice(0, 3).join('\n'));
+              }}
+            />
+          </SectionCard>
+
         </Stack>
         </Grid.Col>
 

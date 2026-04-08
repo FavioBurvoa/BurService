@@ -60,6 +60,7 @@ export interface EncabezadoForm {
   fecha_vencimiento: string;
   fecha_recepcion: string;
   fecha_entrega: string;
+  observacion: string;
   vehiculo: VehiculoForm;
   cliente: ClienteForm;
   contribuyente: ContribuyenteForm | null;
@@ -255,6 +256,7 @@ export function createEmptyEncabezado(): EncabezadoForm {
     fecha_vencimiento: '',
     fecha_recepcion: '',
     fecha_entrega: '',
+    observacion: '',
     vehiculo: { patente: '', id_marca: null, id_modelo: null, anio: null, color: '' },
     cliente: { rut: '', nombre: '', giro: '', id_region: null, id_comuna: null, direccion: '', email: '', telefono: '' },
     contribuyente: null,
