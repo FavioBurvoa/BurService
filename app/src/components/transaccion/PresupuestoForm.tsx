@@ -614,7 +614,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                   <TextInput
                     label="RUT"
                     placeholder="12.345.678-9"
-                    value={encabezado.cliente.rut}
+                    value={encabezado.cliente.rut ?? ''}
                     onChange={(e) => setClienteField('rut', e.currentTarget.value)}
                     onBlur={() => lookupRut(encabezado.cliente.rut, 'cliente')}
                     style={{ flex: '0 0 140px' }}
@@ -628,7 +628,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                   <TextInput
                     label="Nombre"
                     placeholder="Nombre completo"
-                    value={encabezado.cliente.nombre}
+                    value={encabezado.cliente.nombre ?? ''}
                     onChange={(e) => setClienteField('nombre', e.currentTarget.value)}
                     style={{ flex: 1 }}
                     size="sm"
@@ -639,14 +639,14 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                   <TextInput
                     label="Teléfono"
                     placeholder="+56 9 1234 5678"
-                    value={encabezado.cliente.telefono}
+                    value={encabezado.cliente.telefono ?? ''}
                     onChange={(e) => setClienteField('telefono', e.currentTarget.value)}
                     size="sm"
                   />
                   <TextInput
                     label="Email"
                     placeholder="correo@ejemplo.com"
-                    value={encabezado.cliente.email}
+                    value={encabezado.cliente.email ?? ''}
                     onChange={(e) => setClienteField('email', e.currentTarget.value)}
                     size="sm"
                   />
@@ -663,7 +663,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                   <TextInput
                     label="Dirección"
                     placeholder="Av. Ejemplo 123"
-                    value={encabezado.cliente.direccion}
+                    value={encabezado.cliente.direccion ?? ''}
                     onChange={(e) => setClienteField('direccion', e.currentTarget.value)}
                     size="sm"
                   />
@@ -704,7 +704,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                       </Tooltip>
                     </Group>
                     <TextInput label="Año" placeholder="2020" value={encabezado.vehiculo.anio !== null ? String(encabezado.vehiculo.anio) : ''} onChange={(e) => { const n = parseInt(e.currentTarget.value); setVehiculoField('anio', isNaN(n) ? null : n); }} inputMode="numeric" size="sm" style={{ flex: '0 0 72px' }} />
-                    <TextInput label="Color" placeholder="Blanco" value={encabezado.vehiculo.color} onChange={(e) => setVehiculoField('color', e.currentTarget.value)} size="sm" style={{ flex: '0 0 90px' }} />
+                    <TextInput label="Color" placeholder="Blanco" value={encabezado.vehiculo.color ?? ''} onChange={(e) => setVehiculoField('color', e.currentTarget.value)} size="sm" style={{ flex: '0 0 90px' }} />
                   </Group>
                 </Box>
 
@@ -739,7 +739,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                         </Tooltip>
                       </Group>
                       <TextInput label="Año" placeholder="2020" value={encabezado.vehiculo.anio !== null ? String(encabezado.vehiculo.anio) : ''} onChange={(e) => { const n = parseInt(e.currentTarget.value); setVehiculoField('anio', isNaN(n) ? null : n); }} inputMode="numeric" size="sm" />
-                      <TextInput label="Color" placeholder="Blanco" value={encabezado.vehiculo.color} onChange={(e) => setVehiculoField('color', e.currentTarget.value)} size="sm" />
+                      <TextInput label="Color" placeholder="Blanco" value={encabezado.vehiculo.color ?? ''} onChange={(e) => setVehiculoField('color', e.currentTarget.value)} size="sm" />
                     </SimpleGrid>
                   </Stack>
                 </Box>
@@ -755,7 +755,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                 <TextInput
                   label="RUT"
                   placeholder="76.543.210-K"
-                  value={encabezado.contribuyente.rut}
+                  value={encabezado.contribuyente.rut ?? ''}
                   onChange={(e) => setContribuyenteField('rut', e.currentTarget.value)}
                   onBlur={() =>
                     encabezado.contribuyente &&
@@ -782,19 +782,19 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
               <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
                 <TextInput
                   label="Razón Social"
-                  value={encabezado.contribuyente.nombre}
+                  value={encabezado.contribuyente.nombre ?? ''}
                   onChange={(e) => setContribuyenteField('nombre', e.currentTarget.value)}
                   size="sm"
                 />
                 <TextInput
                   label="Teléfono"
-                  value={encabezado.contribuyente.telefono}
+                  value={encabezado.contribuyente.telefono ?? ''}
                   onChange={(e) => setContribuyenteField('telefono', e.currentTarget.value)}
                   size="sm"
                 />
                 <TextInput
                   label="Email"
-                  value={encabezado.contribuyente.email}
+                  value={encabezado.contribuyente.email ?? ''}
                   onChange={(e) => setContribuyenteField('email', e.currentTarget.value)}
                   size="sm"
                 />
@@ -803,7 +803,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
               <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
                 <TextInput
                   label="Giro"
-                  value={encabezado.contribuyente.giro}
+                  value={encabezado.contribuyente.giro ?? ''}
                   onChange={(e) => setContribuyenteField('giro', e.currentTarget.value)}
                   size="sm"
                 />
@@ -818,7 +818,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                 />
                 <TextInput
                   label="Dirección"
-                  value={encabezado.contribuyente.direccion}
+                  value={encabezado.contribuyente.direccion ?? ''}
                   onChange={(e) => setContribuyenteField('direccion', e.currentTarget.value)}
                   size="sm"
                 />
@@ -891,7 +891,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
               maxRows={3}
               maxLength={500}
               size="sm"
-              value={encabezado.observacion}
+              value={encabezado.observacion ?? ''}
               onChange={(e) => {
                 const lines = e.currentTarget.value.split('\n');
                 setEncabezadoField('observacion', lines.slice(0, 3).join('\n'));

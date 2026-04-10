@@ -41,9 +41,15 @@ renderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // ── Documento HTML → Chromium → PDF ──────────────────────────────────
+    // ── Documento HTML → Chromium → PDF (o HTML directo para debug) ─────
     if (template instanceof DocumentoBase) {
-      const html      = template.buildHtml(data);
+      const html = template.buildHtml(data);
+      if (formato === 'html') {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${templateName}.html"`);
+        res.send(html);
+        return;
+      }
       const pdfBuffer = await gotenbergClient.htmlToPdf(html);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${templateName}.pdf"`);

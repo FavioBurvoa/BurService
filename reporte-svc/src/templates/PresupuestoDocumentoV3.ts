@@ -1,16 +1,22 @@
 // ============================================================================
-// TEMPLATE V3: Documento de Presupuesto — Diseño profesional (variante uniforme)
-// Igual que V2 pero todos los títulos de grupo (thead + sub-encabezados internos)
-// comparten el mismo estilo: fondo #1B3A5C, texto blanco.
+// TEMPLATE V3: Documento de Presupuesto — layout adaptativo por agrupación
+//
+// Cada agrupación (tipos_presupuesto_detalles) es una mini-tabla independiente
+// con columnas dinámicas según ver_cantidad / ver_valor / ver_total.
+// El layout del documento se adapta automáticamente:
+//   - Solo col_doc=1 o solo col_doc=2 → ancho completo (sides-single)
+//   - Ambos lados configurados         → dos columnas   (sides-double)
 // ============================================================================
 
 import { DocumentoBase } from '../core/DocumentoBase';
 
-// ─── Tipos (idénticos a v1/v2) ────────────────────────────────────────────────
+// ─── Tipos ───────────────────────────────────────────────────────────────────
 
 interface ItemDoc {
   descripcion: string;
+  cantidad:    number | null;
   valor:       number | null;
+  total:       number | null;
 }
 
 interface GrupoDoc {
@@ -18,7 +24,23 @@ interface GrupoDoc {
   col_doc:      1 | 2;
   header:       string;
   cant_max_det: number;
+  ver_cantidad: boolean;
+  ver_valor:    boolean;
+  ver_total:    boolean;
   items:        ItemDoc[];
+}
+
+interface TipoPresupuestoDoc {
+  encabezado_linea1: string | null;
+  encabezado_linea2: string | null;
+  logo_ancho:        number | null;
+  logo_alto:         number | null;
+  dias_validez:      number | null;
+}
+
+interface LogoDoc {
+  mime_type: string;
+  archivo:   string;
 }
 
 interface PresupuestoDocumentoData {
@@ -62,7 +84,7 @@ interface PresupuestoDocumentoData {
   subtotales: Array<{ nombre: string; monto: number }>;
 }
 
-// ─── Helpers (idénticos a v1/v2) ─────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function esc(s: string | null | undefined): string {
   return (s ?? '')
@@ -82,17 +104,91 @@ function fmtFechaCorta(s: string | null | undefined): string {
   return new Date(s + 'T12:00:00').toLocaleDateString('es-CL');
 }
 
-interface TipoPresupuestoDoc {
-  encabezado_linea1: string | null;
-  encabezado_linea2: string | null;
-  logo_ancho:        number | null;
-  logo_alto:         number | null;
-  dias_validez:      number | null;
+function fmtCant(n: number | null | undefined): string {
+  if (n == null) return '';
+  return Number.isInteger(n) ? String(n) : n.toLocaleString('es-CL');
 }
 
-interface LogoDoc {
-  mime_type: string;
-  archivo:   string;
+// ─── Renderizado de lado ──────────────────────────────────────────────────────
+//
+// Un lado = una única <table>. Los grupos se apilan dentro del <tbody>:
+//   - Primer grupo: su nombre va en el <thead> junto a las cabeceras de columna
+//   - Grupos siguientes: fila <tr class="grp-hdr"> que actúa de separador
+//
+// Las columnas se determinan por el SUPERSET de ver_xxx de todos los grupos
+// del lado. Si el lado es heterogéneo (un grupo tiene ver_valor y otro no),
+// las celdas extras de los grupos que no aplican se dejan vacías.
+// Esto garantiza que thead, grp-hdr y filas de datos tengan SIEMPRE el mismo
+// número de columnas → las líneas horizontales se alinean entre lados.
+
+function buildLadoHtml(grupos: GrupoDoc[]): string {
+  if (grupos.length === 0) return '';
+
+  // Superset de columnas del lado
+  const verCant  = grupos.some(g => g.ver_cantidad);
+  const verVal   = grupos.some(g => g.ver_valor);
+  const verTot   = grupos.some(g => g.ver_total);
+  const colCount = 1 + (verCant ? 1 : 0) + (verVal ? 1 : 0) + (verTot ? 1 : 0);
+
+  // Colgroup según superset
+  let colgroup: string;
+  if (verCant && verVal && verTot) {
+    colgroup = '<colgroup><col style="width:52%"><col style="width:12%"><col style="width:20%"><col style="width:16%"></colgroup>';
+  } else if (verVal) {
+    colgroup = '<colgroup><col style="width:78%"><col style="width:22%"></colgroup>';
+  } else {
+    colgroup = '<colgroup><col style="width:100%"></colgroup>';
+  }
+
+  // thead — nombre del primer grupo + cabeceras de columna
+  const theadCols = [
+    `<th class="th-desc">${esc(grupos[0].header)}</th>`,
+    verCant ? '<th class="th-num">Cant.</th>' : '',
+    verVal  ? '<th class="th-num">Valor</th>' : '',
+    verTot  ? '<th class="th-num">Total</th>' : '',
+  ].join('');
+
+  // tbody — todos los grupos
+  const empty: ItemDoc = { descripcion: '', cantidad: null, valor: null, total: null };
+  let offset = 0;
+  const rows: string[] = [];
+
+  for (let gi = 0; gi < grupos.length; gi++) {
+    const g = grupos[gi];
+
+    // Grupos 2+ → fila separadora con nombre del grupo (mismo alto que data row)
+    if (gi > 0) {
+      rows.push(`    <tr class="grp-hdr"><td colspan="${colCount}">${esc(g.header)}</td></tr>`);
+      offset += 1; // grp-hdr ocupa una fila → mantener alternancia even/odd
+    }
+
+    // Filas de datos + relleno hasta cant_max_det
+    const padCount = Math.max(0, g.cant_max_det - g.items.length);
+    const allRows  = [...g.items, ...Array(padCount).fill(empty)];
+
+    for (let i = 0; i < allRows.length; i++) {
+      const item     = allRows[i];
+      const rowClass = (offset + i) % 2 === 0 ? 'row-even' : 'row-odd';
+      const hasData  = item.descripcion.trim() !== '';
+      const tdCols   = [
+        `<td class="td-desc">${esc(item.descripcion)}</td>`,
+        verCant ? `<td class="td-num">${hasData && g.ver_cantidad ? fmtCant(item.cantidad) : ''}</td>` : '',
+        verVal  ? `<td class="td-num">${hasData && g.ver_valor    ? fmt(item.valor)        : ''}</td>` : '',
+        verTot  ? `<td class="td-num">${hasData && g.ver_total    ? fmt(item.total)        : ''}</td>` : '',
+      ].join('');
+      rows.push(`    <tr class="${rowClass}">${tdCols}</tr>`);
+    }
+
+    offset += allRows.length;
+  }
+
+  return `<table class="grp-tbl">
+  ${colgroup}
+  <thead><tr>${theadCols}</tr></thead>
+  <tbody>
+${rows.join('\n')}
+  </tbody>
+</table>`;
 }
 
 // ─── Template V3 ─────────────────────────────────────────────────────────────
@@ -102,120 +198,60 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
   buildHtml(data: PresupuestoDocumentoData): string {
     const { empresa, tipo_presupuesto: tp, logo, encabezado: enc, cliente: cli, vehiculo: veh, grupos, subtotales } = data;
 
-    // ── Datos de encabezado y logo ────────────────────────────────────────
-    const enc1       = tp?.encabezado_linea1 ?? null;
-    const enc2       = tp?.encabezado_linea2 ?? null;
-    const logoAncho  = tp?.logo_ancho ?? 100;
-    const logoAlto   = tp?.logo_alto  ?? 60;
-    const diasValid  = tp?.dias_validez ?? 15;
+    // ── Configuración de encabezado ───────────────────────────────────────
+    const enc1      = tp?.encabezado_linea1 ?? null;
+    const enc2      = tp?.encabezado_linea2 ?? null;
+    const logoAncho = tp?.logo_ancho ?? 100;
+    const logoAlto  = tp?.logo_alto  ?? 60;
+    const diasValid = tp?.dias_validez ?? 15;
 
-    // ── Separar grupos por columna ────────────────────────────────────────
+    // ── Layout: determinar si hay 1 o 2 lados ────────────────────────────
     const leftGrupos  = grupos.filter(g => g.col_doc === 1);
     const rightGrupos = grupos.filter(g => g.col_doc === 2);
+    const isSingle    = leftGrupos.length === 0 || rightGrupos.length === 0;
+    const singleGrupos = leftGrupos.length > 0 ? leftGrupos : rightGrupos;
 
-    // ── Filas columna izquierda ───────────────────────────────────────────
-    type LRow = { isHeader: boolean; desc: string; valor: number | null };
-    const leftRows: LRow[] = [];
-    let leftHeader = leftGrupos[0]?.header ?? 'Repuestos';
+    // ── HTML de grupos por lado ───────────────────────────────────────────
+    const sidesHtml = isSingle
+      ? `<div class="sides-wrap sides-single">
+  <div class="side">
+    ${buildLadoHtml(singleGrupos)}
+  </div>
+</div>`
+      : `<div class="sides-wrap sides-double">
+  <div class="side side-left">
+    ${buildLadoHtml(leftGrupos)}
+  </div>
+  <div class="side side-right">
+    ${buildLadoHtml(rightGrupos)}
+  </div>
+</div>`;
 
-    for (let gi = 0; gi < leftGrupos.length; gi++) {
-      const g = leftGrupos[gi];
-      if (gi === 0) {
-        leftHeader = g.header;
-      } else {
-        leftRows.push({ isHeader: true, desc: g.header, valor: null });
-      }
-      for (const item of g.items) {
-        leftRows.push({ isHeader: false, desc: item.descripcion, valor: item.valor });
-      }
-      const pad = g.cant_max_det - g.items.length;
-      for (let i = 0; i < pad; i++) {
-        leftRows.push({ isHeader: false, desc: '', valor: null });
-      }
-    }
-
-    // ── Filas columna derecha ─────────────────────────────────────────────
-    type RRow = { isHeader: boolean; text: string };
-    const rightRows: RRow[] = [];
-    let rightHeader = rightGrupos[0]?.header ?? 'Servicio';
-
-    for (let gi = 0; gi < rightGrupos.length; gi++) {
-      const g = rightGrupos[gi];
-      if (gi === 0) {
-        rightHeader = g.header;
-      } else {
-        rightRows.push({ isHeader: true, text: g.header });
-      }
-      for (const item of g.items) {
-        rightRows.push({ isHeader: false, text: item.descripcion });
-      }
-      const pad = g.cant_max_det - g.items.length;
-      for (let i = 0; i < pad; i++) {
-        rightRows.push({ isHeader: false, text: '' });
-      }
-    }
-
-    // ── Igualar longitudes ────────────────────────────────────────────────
-    const maxLen = Math.max(leftRows.length, rightRows.length, 12);
-    while (leftRows.length  < maxLen) leftRows.push({ isHeader: false, desc: '', valor: null });
-    while (rightRows.length < maxLen) rightRows.push({ isHeader: false, text: '' });
-
-    // ── HTML filas de la tabla principal ──────────────────────────────────
-    const rowsHtml = leftRows.map((l, i) => {
-      const r      = rightRows[i];
-      const isEven = i % 2 === 0;
-
-      if (l.isHeader) {
-        // Sub-encabezado izquierdo — mismo estilo que thead, abarca las 3 celdas
-        return `    <tr class="row-subhdr">
-      <td colspan="3">${esc(l.desc)}</td>
-    </tr>`;
-      }
-      if (r.isHeader) {
-        // Sub-encabezado derecho — celdas izq. con alternancia normal, solo 3ra celda con estilo thead
-        return `    <tr class="${isEven ? 'row-even' : 'row-odd'}">
-      <td class="td-left"></td>
-      <td class="td-price"></td>
-      <td class="subhdr-right">${esc(r.text)}</td>
-    </tr>`;
-      }
-
-      const rowClass = isEven ? 'row-even' : 'row-odd';
-      const precio   = l.valor != null ? fmt(l.valor) : '';
-      return `    <tr class="${rowClass}">
-      <td class="td-left">${esc(l.desc)}</td>
-      <td class="td-price">${precio}</td>
-      <td class="td-right">${esc(r.text)}</td>
-    </tr>`;
-    }).join('\n');
-
-    // ── Subtotales dinámicos ──────────────────────────────────────────────
+    // ── Subtotales ────────────────────────────────────────────────────────
     const subtotalesHtml = subtotales.map(s => `      <tr class="tot-row">
         <td class="tot-label">${esc(s.nombre.toUpperCase())}</td>
         <td class="tot-val">${fmt(s.monto)}</td>
       </tr>`).join('\n');
 
-    const subtotal  = enc.neto + enc.exento;
-    const hayIva    = enc.porcentaje_iva > 0 && enc.iva > 0;
-    const numStr    = enc.numero != null ? String(enc.numero).padStart(4, '0') : '----';
+    const subtotal = enc.neto + enc.exento;
+    const hayIva   = enc.porcentaje_iva > 0 && enc.iva > 0;
+    const numStr   = enc.numero != null ? String(enc.numero).padStart(4, '0') : '----';
 
-    // ── Logo HTML ──────────────────────────────────────────────────────────
+    // ── Logo y títulos ────────────────────────────────────────────────────
     const logoHtml = logo
       ? `<img src="data:${esc(logo.mime_type)};base64,${logo.archivo}" style="width:${logoAncho}px;height:${logoAlto}px;object-fit:contain;flex-shrink:0;margin-right:12px;">`
       : '';
 
-    // ── Títulos de encabezado ──────────────────────────────────────────────
-    const titulos = [enc1, enc2].filter(Boolean);
-    const titulosHtml = titulos.map((t, i) =>
+    const titulosHtml = [enc1, enc2].filter(Boolean).map((t, i) =>
       i === 0
         ? `<div class="hdr-enc1">${esc(t!)}</div>`
         : `<div class="hdr-enc2">${esc(t!)}</div>`
     ).join('');
 
-    // ── Dirección y contacto ───────────────────────────────────────────────
+    // ── Dirección y contacto ──────────────────────────────────────────────
     const addrLines = [
-      empresa.direccion        ? esc(empresa.direccion)            : null,
-      empresa.direccion_referencia ? `<span class="hdr-ref">${esc(empresa.direccion_referencia)}</span>` : null,
+      empresa.direccion             ? esc(empresa.direccion)                                              : null,
+      empresa.direccion_referencia  ? `<span class="hdr-ref">${esc(empresa.direccion_referencia)}</span>` : null,
     ].filter(Boolean).join('<br>');
 
     const contactLines = [
@@ -228,7 +264,7 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
 <head>
 <meta charset="UTF-8">
 <style>
-  /* ── Reset ────────────────────────────────────────── */
+  /* ── Reset ──────────────────────────────────────── */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: Arial, sans-serif;
@@ -238,18 +274,13 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
     padding: 24px 28px;
   }
 
-  /* ── HEADER ──────────────────────────────────────── */
-  /* Fila superior: logo + títulos centrados + caja N° */
+  /* ── HEADER ─────────────────────────────────────── */
   .hdr-top {
     display: flex;
     align-items: center;
     margin-bottom: 6px;
   }
-  .hdr-titles {
-    flex: 1;
-    text-align: center;
-    padding: 0 10px;
-  }
+  .hdr-titles { flex: 1; text-align: center; padding: 0 10px; }
   .hdr-enc1 {
     font-size: 14pt;
     font-weight: bold;
@@ -258,19 +289,8 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-  .hdr-enc2 {
-    font-size: 10pt;
-    font-style: italic;
-    color: #4A5568;
-    line-height: 1.3;
-  }
-  /* Línea divisoria */
-  .hdr-divider {
-    border: none;
-    border-top: 2.5px solid #1B3A5C;
-    margin: 4px 0;
-  }
-  /* Fila inferior: dirección izq. + contacto der. */
+  .hdr-enc2 { font-size: 10pt; font-style: italic; color: #4A5568; line-height: 1.3; }
+  .hdr-divider { border: none; border-top: 2.5px solid #1B3A5C; margin: 4px 0; }
   .hdr-bottom {
     display: flex;
     justify-content: space-between;
@@ -279,10 +299,10 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
     margin-bottom: 8px;
     line-height: 1.5;
   }
-  .hdr-ref { color: #6B7280; }
+  .hdr-ref     { color: #6B7280; }
   .hdr-contact { text-align: right; }
 
-  /* Caja del número de presupuesto */
+  /* Caja número de presupuesto */
   .hdr-num-box {
     background: #1B3A5C;
     color: #fff;
@@ -292,32 +312,13 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
     min-width: 140px;
     flex-shrink: 0;
   }
-  .num-label {
-    font-size: 7pt;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: 0.8;
-  }
-  .num-value {
-    font-size: 18pt;
-    font-weight: bold;
-    line-height: 1.1;
-    letter-spacing: 1px;
-  }
-  .num-fecha {
-    font-size: 7.5pt;
-    opacity: 0.85;
-    margin-top: 4px;
-  }
+  .num-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+  .num-value { font-size: 18pt; font-weight: bold; line-height: 1.1; letter-spacing: 1px; }
+  .num-fecha { font-size: 7.5pt; opacity: 0.85; margin-top: 4px; }
   .num-fecha span { opacity: 0.7; }
 
-  /* ── SECCIÓN CLIENTE / VEHÍCULO ───────────────────── */
-  .cv-wrap {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
+  /* ── CLIENTE / VEHÍCULO ─────────────────────────── */
+  .cv-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
   .cv-box {
     background: #F4F6F9;
     border: 1px solid #D0D7DE;
@@ -334,96 +335,84 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
     padding-bottom: 3px;
     margin-bottom: 5px;
   }
-  .cv-row {
-    display: flex;
-    font-size: 8pt;
-    line-height: 1.6;
-  }
-  .cv-lbl {
-    color: #6B7280;
-    min-width: 68px;
-    flex-shrink: 0;
-  }
-  .cv-val { color: #1A1A1A; font-weight: 500; }
+  .cv-row  { display: flex; font-size: 8pt; line-height: 1.6; }
+  .cv-lbl  { color: #6B7280; min-width: 68px; flex-shrink: 0; }
+  .cv-val  { color: #1A1A1A; font-weight: 500; }
 
-  /* ── TABLA PRINCIPAL ──────────────────────────────── */
-  .main-tbl {
+  /* ── LAYOUT DE LADOS ────────────────────────────── */
+  .sides-wrap { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-start; }
+  .sides-single .side { width: 100%; }
+  .sides-double .side { width: calc(50% - 4px); }
+
+  /* Card que envuelve todos los grupos de un lado */
+  .side {
+    border: 1px solid #D0D7DE;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  /* ── TABLA DE AGRUPACIÓN ────────────────────────── */
+  .grp-tbl {
     width: 100%;
     border-collapse: collapse;
     font-size: 8pt;
-    margin-bottom: 10px;
   }
-  .main-tbl thead tr {
-    background: #1B3A5C;
-    color: #fff;
-  }
-  .main-tbl th {
-    padding: 5px 8px;
+
+  /* Encabezado principal (thead) — altura fija, sin wrap */
+  .grp-tbl thead tr { background: #1B3A5C; color: #fff; }
+  .grp-tbl th {
+    height: 16px;
+    padding: 1px 8px;
     font-weight: bold;
     font-size: 7.5pt;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
   }
-  .main-tbl th.th-left  { text-align: center; width: 44%; }
-  .main-tbl th.th-price { text-align: right;  width: 12%; }
-  .main-tbl th.th-right { text-align: center; width: 44%; }
+  .grp-tbl th.th-desc { text-align: left; }
+  .grp-tbl th.th-num  { text-align: right; }
 
-  .main-tbl td {
-    padding: 3px 8px;
+  /* Separador de grupo secundario — misma altura que fila de datos */
+  .grp-hdr { background: #1B3A5C; color: #fff; }
+  .grp-hdr td {
     height: 16px;
+    padding: 1px 8px;
+    font-weight: bold;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+  }
+
+  /* Filas de datos — altura fija, sin wrap */
+  .grp-tbl td {
+    height: 16px;
+    padding: 1px 8px;
     vertical-align: middle;
     border-bottom: 1px solid #E8ECF0;
-    border-left: none;
-    border-right: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
   }
-  .td-left  { width: 44%; }
-  .td-price { width: 12%; text-align: right; color: #1B3A5C; font-weight: 500; }
-  .td-right { width: 44%; }
+  .grp-tbl tbody tr:last-child td { border-bottom: none; }
+  .grp-tbl td.td-desc { text-align: left; }
+  .grp-tbl td.td-num  { text-align: right; color: #1B3A5C; font-weight: 500; border-left: 1px solid #D0D7DE; }
 
   .row-even { background: #fff; }
   .row-odd  { background: #F8FAFC; }
 
-  /* Sub-encabezado izquierdo — mismo estilo que thead, abarca las 3 celdas */
-  .row-subhdr {
-    background: #1B3A5C;
-    color: #fff;
-  }
-  .row-subhdr td {
-    font-weight: bold;
-    font-size: 7.5pt;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-align: center;
-    padding: 5px 8px;
-    border-bottom: none;
-  }
-  /* Sub-encabezado derecho — solo la 3ra celda con estilo thead */
-  .subhdr-right {
-    background: #1B3A5C;
-    color: #fff;
-    font-weight: bold;
-    font-size: 7.5pt;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-align: center;
-    padding: 5px 8px;
-    border-bottom: none;
-  }
-
-  /* Línea separadora entre columna izq. y der. */
-  .main-tbl td.td-price {
-    border-left: 1px solid #D0D7DE;
-    border-right: 1px solid #D0D7DE;
-  }
-
-  /* ── OBSERVACIÓN + TOTALES ───────────────────────── */
-  .obs-tot-wrap {
-    display: flex;
-    align-items: flex-start;
-    gap: 20px;
-    margin-bottom: 16px;
-  }
+  /* ── OBSERVACIÓN + TOTALES ──────────────────────── */
+  .obs-tot-wrap { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 16px; }
   .obs-box {
     flex: 1;
     border: 1px solid #D0D7DE;
@@ -442,51 +431,32 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
     color: #1B3A5C;
     margin-bottom: 5px;
   }
-  .obs-text {
-    font-size: 8pt;
-    color: #4A5568;
-    line-height: 1.6;
-    white-space: pre-wrap;
-  }
-  /* ── TOTALES ──────────────────────────────────────── */
-  .tot-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 16px;
+  .obs-text { font-size: 8pt; color: #4A5568; line-height: 1.6; white-space: pre-wrap; }
+
+  /* ── TOTALES ────────────────────────────────────── */
+  .tot-wrap { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+  .tot-card {
+    border: 1px solid #D0D7DE;
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 260px;
   }
   .tot-tbl {
     border-collapse: collapse;
     font-size: 8.5pt;
-    min-width: 260px;
-    border: 1px solid #D0D7DE;
-    border-radius: 3px;
-    overflow: hidden;
+    width: 100%;
   }
-  .tot-row td {
-    padding: 3px 12px;
-    border-bottom: 1px solid #E8ECF0;
-  }
-  .tot-label { color: #4A5568; font-size: 8pt; }
-  .tot-val   { text-align: right; color: #1A1A1A; min-width: 100px; }
-
-  .tot-subtotal td {
-    border-top: 1px solid #D0D7DE;
-    padding-top: 4px;
-  }
-  .tot-iva td { color: #6B7280; font-size: 8pt; }
+  .tot-row td    { padding: 3px 12px; border-bottom: 1px solid #E8ECF0; }
+  .tot-label     { color: #4A5568; font-size: 8pt; }
+  .tot-val       { text-align: right; color: #1A1A1A; min-width: 100px; }
+  .tot-subtotal td { border-top: 1px solid #D0D7DE; padding-top: 4px; }
+  .tot-iva td    { color: #6B7280; font-size: 8pt; }
   .tot-iva .tot-label::after { content: ' (${enc.porcentaje_iva}%)'; font-size: 7.5pt; }
-
-  .tot-total { background: #1B3A5C; }
-  .tot-total td {
-    color: #fff;
-    font-weight: bold;
-    font-size: 10pt;
-    padding: 6px 12px;
-    border-bottom: none;
-  }
+  .tot-total     { background: #1B3A5C; }
+  .tot-total td  { color: #fff; font-weight: bold; font-size: 10pt; padding: 6px 12px; border-bottom: none; }
   .tot-total .tot-val { font-size: 10.5pt; }
 
-  /* ── FOOTER ───────────────────────────────────────── */
+  /* ── FOOTER ─────────────────────────────────────── */
   .footer {
     border-top: 1px solid #D0D7DE;
     padding-top: 6px;
@@ -519,7 +489,7 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
   <div class="hdr-contact">${contactLines}</div>
 </div>
 
-<!-- ═══ CLIENTE / VEHÍCULO ═══════════════════════════════════════════════════ -->
+<!-- ═══ CLIENTE / VEHÍCULO ══════════════════════════════════════════════════ -->
 <div class="cv-wrap">
   <div class="cv-box">
     <div class="cv-title">Cliente</div>
@@ -537,26 +507,16 @@ export class PresupuestoDocumentoV3Reporte extends DocumentoBase<PresupuestoDocu
   </div>
 </div>
 
-<!-- ═══ TABLA PRINCIPAL ═══════════════════════════════════════════════════════ -->
-<table class="main-tbl">
-  <thead>
-    <tr>
-      <th class="th-left">${esc(leftHeader)}</th>
-      <th class="th-price">Precio</th>
-      <th class="th-right">${esc(rightHeader)}</th>
-    </tr>
-  </thead>
-  <tbody>
-${rowsHtml}
-  </tbody>
-</table>
+<!-- ═══ AGRUPACIONES ════════════════════════════════════════════════════════ -->
+${sidesHtml}
 
-<!-- ═══ TOTALES ══════════════════════════════════════════════════════════════ -->
+<!-- ═══ TOTALES ═════════════════════════════════════════════════════════════ -->
 <div class="${enc.observacion ? 'obs-tot-wrap' : 'tot-wrap'}">
   ${enc.observacion ? `<div class="obs-box">
     <div class="obs-title">Observaciones</div>
     <div class="obs-text">${esc(enc.observacion)}</div>
   </div>` : ''}
+  <div class="tot-card">
   <table class="tot-tbl">
     <tbody>
 ${subtotalesHtml}
@@ -574,9 +534,10 @@ ${subtotalesHtml}
       </tr>
     </tbody>
   </table>
+  </div>
 </div>
 
-<!-- ═══ FOOTER ════════════════════════════════════════════════════════════════ -->
+<!-- ═══ FOOTER ══════════════════════════════════════════════════════════════ -->
 <div class="footer">
   Presupuesto válido por ${diasValid} días a partir de la fecha de emisión.&nbsp;&nbsp;·&nbsp;&nbsp;Precios en pesos chilenos (CLP).
 </div>

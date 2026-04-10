@@ -2869,11 +2869,19 @@ BEGIN
             SELECT
               tpd.orden,
               tpd.col_doc,
-              tpd.descripcion AS header,
+              tpd.descripcion  AS header,
               tpd.cant_max_det,
+              tpd.ver_cantidad,
+              tpd.ver_valor,
+              tpd.ver_total,
               COALESCE(
                 (SELECT json_agg(
-                   json_build_object('descripcion', pd.descripcion, 'valor', pd.valor)
+                   json_build_object(
+                     'descripcion', pd.descripcion,
+                     'cantidad',    pd.cantidad,
+                     'valor',       pd.valor,
+                     'total',       pd.total
+                   )
                    ORDER BY pd.orden, pd.id
                  )
                  FROM presupuesto_detalles pd

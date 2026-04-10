@@ -98,6 +98,8 @@ async function handlePresupuestoDocumento(
     );
   }
 
+  const formato = sp.get('formato') ?? 'pdf';
+
   try {
     // 1. Una sola llamada al Node API — retorna todo lo necesario para el documento
     const docResp = await apiFetch(`/presupuestos/${id}/documento`);
@@ -108,11 +110,11 @@ async function handlePresupuestoDocumento(
       );
     }
 
-    // 2. Enviar al reporte-svc → genera HTML → Gotenberg → PDF
+    // 2. Enviar al reporte-svc → genera HTML → Gotenberg → PDF (o HTML directo)
     const renderRes = await fetch(`${REPORTE_SVC_URL}/render`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ template: 'presupuesto-documento-v3', data: docResp.data }),
+      body:    JSON.stringify({ template: 'presupuesto-documento-v3', formato, data: docResp.data }),
     });
 
     if (!renderRes.ok) {
@@ -124,10 +126,11 @@ async function handlePresupuestoDocumento(
     }
 
     const buffer = await renderRes.arrayBuffer();
+    const isHtml = formato === 'html';
     return new NextResponse(buffer, {
       headers: {
-        'Content-Type':        'application/pdf',
-        'Content-Disposition': `attachment; filename="presupuesto-${id}.pdf"`,
+        'Content-Type':        isHtml ? 'text/html; charset=utf-8' : 'application/pdf',
+        'Content-Disposition': `attachment; filename="presupuesto-${id}.${isHtml ? 'html' : 'pdf'}"`,
       },
     });
   } catch (err) {

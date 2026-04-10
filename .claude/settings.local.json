@@ -34,7 +34,9 @@
       "WebFetch(domain:www.fanlesstech.com)",
       "WebFetch(domain:minipcreviewer.com)",
       "WebFetch(domain:www.guiahardware.es)",
-      "WebFetch(domain:us.msi.com)"
+      "WebFetch(domain:us.msi.com)",
+      "WebFetch(domain:storage-asset.msi.com)",
+      "WebFetch(domain:www.ldlc.com)"
     ]
   }
 }
