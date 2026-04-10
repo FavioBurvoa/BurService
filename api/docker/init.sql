@@ -2400,6 +2400,8 @@ $$;
 --   6 = lookup por patente
 --   7 = lookup por RUT
 --   8 = config tipo presupuesto
+--   9 = documento completo para PDF
+--  10 = lookup por código de empresa + número de presupuesto
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION sp_presupuestos(
@@ -2914,6 +2916,26 @@ BEGIN
 
     IF v_result IS NULL THEN
       RAISE EXCEPTION 'Presupuesto % no encontrado', v_id;
+    END IF;
+    RETURN v_result;
+
+  -- =========================================================================
+  -- OPCION 10: Lookup por código de empresa + número de presupuesto
+  -- Retorna solo { id } para que el frontend pueda redirigir a /presupuestos/:id
+  -- =========================================================================
+  ELSIF p_opcion = 10 THEN
+    SELECT json_build_object(
+      'message', 'Presupuesto encontrado',
+      'data',    json_build_object('id', p.id)
+    ) INTO v_result
+    FROM presupuestos p
+    JOIN empresas e ON e.id = p.id_empresa
+    WHERE UPPER(TRIM(e.codigo)) = UPPER(TRIM(COALESCE(p_data->>'codigo_empresa', '')))
+      AND p.numero = (p_data->>'numero')::INTEGER;
+
+    IF v_result IS NULL THEN
+      RAISE EXCEPTION 'Presupuesto no encontrado: empresa ''%'' número %',
+        p_data->>'codigo_empresa', p_data->>'numero';
     END IF;
     RETURN v_result;
 

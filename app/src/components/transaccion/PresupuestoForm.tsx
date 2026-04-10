@@ -400,11 +400,11 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
             >
               Guardar
             </Button>
-            {presupuestoId && (
+            {(presupuestoId ?? encabezado.id) && (
               <PdfButton
                 reportName="presupuesto-documento"
-                params={{ id: String(presupuestoId) }}
-                filename={`presupuesto-${encabezado.numero ?? presupuestoId}.pdf`}
+                params={{ id: String(presupuestoId ?? encabezado.id) }}
+                filename={`presupuesto-${encabezado.numero ?? presupuestoId ?? encabezado.id}.pdf`}
                 withLabel
               />
             )}

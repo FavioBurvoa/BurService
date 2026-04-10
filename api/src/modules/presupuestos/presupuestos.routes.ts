@@ -223,6 +223,26 @@ presupuestosRouter.get(
   },
 );
 
+// ── GET /lookup/numero — Lookup por código de empresa + número presupuesto ─
+presupuestosRouter.get(
+  '/lookup/numero',
+  authMiddleware,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const codigoEmpresa = String(req.query['codigo_empresa'] ?? '').trim();
+      const numero = Number(req.query['numero']);
+      if (!codigoEmpresa || !numero || isNaN(numero)) {
+        res.status(400).json({ success: false, message: 'codigo_empresa y numero requeridos', data: null, timestamp: new Date().toISOString() });
+        return;
+      }
+      const { message, data } = await callSP('sp_presupuestos', 10, { codigo_empresa: codigoEmpresa, numero });
+      ok(res, message, data);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // ── GET /:id ───────────────────────────────────────────────────────────────
 presupuestosRouter.get(
   '/:id',

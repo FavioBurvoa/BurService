@@ -1,0 +1,4 @@
+- formateador rut
+- formateador patente
+- ver como mejorar usabilidad con enter
+- preview mantenedor logo empresa
