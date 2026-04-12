@@ -48,5 +48,44 @@ services:
       - "3002:3000"
     restart: unless-stopped
 
+  postgres-kc:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       ${KC_DB_NAME}
+      POSTGRES_USER:     ${KC_DB_USER}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
+    volumes:
+      - postgres_kc_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KC_DB_USER} -d ${KC_DB_NAME}"]
+      interval: 5s
+      timeout:  5s
+      retries:  5
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6
+    ports:
+      - "3005:8080"
+    environment:
+      KC_DB:                       postgres
+      KC_DB_URL:                   jdbc:postgresql://postgres-kc:5432/${KC_DB_NAME}
+      KC_DB_USERNAME:              ${KC_DB_USER}
+      KC_DB_PASSWORD:              ${KC_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+    # Monta el .jar del tema generado por `npm run build-keycloak-theme`
+    # Ruta relativa desde api/ → ../keycloak-theme/dist_keycloak/
+    volumes:
+      - ../keycloak-theme/dist_keycloak:/opt/keycloak/providers
+    command: start-dev
+    depends_on:
+      postgres-kc:
+        condition: service_healthy
+    restart: unless-stopped
+
 # volumes:
 #   postgres_data:
+
+volumes:
+  postgres_kc_data:

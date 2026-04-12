@@ -1,7 +1,14 @@
 reporte-svc/node_modules/
+
 api/node_modules/
 api/.env
 
 app/node_modules/
 app/.next/
 app/.env.local
+
+keycloak-theme/node_modules/
+keycloak-theme/dist/
+keycloak-theme/dist_keycloak/
+keycloak-theme/storybook-static/
+keycloak-theme/*.tsbuildinfo

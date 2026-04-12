@@ -36,7 +36,8 @@
       "WebFetch(domain:www.guiahardware.es)",
       "WebFetch(domain:us.msi.com)",
       "WebFetch(domain:storage-asset.msi.com)",
-      "WebFetch(domain:www.ldlc.com)"
+      "WebFetch(domain:www.ldlc.com)",
+      "WebFetch(domain:docs.keycloakify.dev)"
     ]
   }
 }

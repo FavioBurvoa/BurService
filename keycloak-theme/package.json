@@ -1,0 +1,35 @@
+{
+  "name": "saga-ops-keycloak-theme",
+  "version": "1.0.0",
+  "description": "Keycloak login theme for Saga Ops",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build-keycloak-theme": "npm run build && keycloakify build",
+    "storybook": "storybook dev -p 6006"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "^5.1.1",
+    "@fontsource/outfit": "^5.1.1",
+    "@mantine/core": "^7.17.0",
+    "@mantine/hooks": "^7.17.0",
+    "@tabler/icons-react": "^3.36.0",
+    "keycloakify": "^11.15.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@storybook/react": "^8.1.10",
+    "@storybook/react-vite": "^8.1.10",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "storybook": "^8.1.10",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
