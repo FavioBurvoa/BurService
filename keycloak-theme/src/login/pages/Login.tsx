@@ -58,7 +58,7 @@ export default function Login(props: Props) {
 
   // ─── Social providers ───────────────────────────────────────────────────────
   const socialProvidersNode =
-    social.displayInfo && (social.providers?.length ?? 0) > 0 ? (
+    social?.displayInfo && (social?.providers?.length ?? 0) > 0 ? (
       <Stack gap="xs">
         {social.providers!.map((provider) => (
           <Button
@@ -177,7 +177,7 @@ export default function Login(props: Props) {
                   id="rememberMe"
                   name="rememberMe"
                   label={msg("rememberMe")}
-                  defaultChecked={login.rememberMe === true}
+                  defaultChecked={Boolean(login.rememberMe)}
                   size="sm"
                 />
               ) : (

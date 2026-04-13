@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import {
   MantineProvider,
   Box,
-  Alert,
   Text,
   Group,
   Stack,
@@ -18,6 +17,7 @@ import "@fontsource/outfit/600.css";
 import "@fontsource/outfit/700.css";
 import type { KcContext } from "./KcContext";
 import type { I18n } from "./i18n";
+import { BASE_URL } from "../kc.gen";
 
 // ─── Paleta dark ──────────────────────────────────────────────────────────────
 const d = {
@@ -101,12 +101,33 @@ const mantineTheme = createTheme({
   }
 });
 
-// ─── Alertas ──────────────────────────────────────────────────────────────────
-const alertConfig = {
-  error:   { color: "red",    icon: <IconAlertCircle size={16} /> },
-  warning: { color: "yellow", icon: <IconAlertCircle size={16} /> },
-  success: { color: "green",  icon: <IconCheck       size={16} /> },
-  info:    { color: "blue",   icon: <IconInfoCircle  size={16} /> }
+// ─── Alertas glass (dark-native) ─────────────────────────────────────────────
+// Diseñadas para fondo oscuro: fondo semi-transparente + borde sutil + texto suave
+const glassAlert = {
+  error: {
+    bg:     "rgba(239, 68, 68, 0.12)",
+    border: "rgba(239, 68, 68, 0.28)",
+    color:  "#fca5a5",
+    icon:   <IconAlertCircle size={15} />
+  },
+  success: {
+    bg:     "rgba(16, 185, 129, 0.12)",
+    border: "rgba(16, 185, 129, 0.28)",
+    color:  "#6ee7b7",
+    icon:   <IconCheck size={15} />
+  },
+  warning: {
+    bg:     "rgba(245, 158, 11, 0.12)",
+    border: "rgba(245, 158, 11, 0.28)",
+    color:  "#fcd34d",
+    icon:   <IconAlertCircle size={15} />
+  },
+  info: {
+    bg:     "rgba(59, 130, 246, 0.12)",
+    border: "rgba(59, 130, 246, 0.28)",
+    color:  "#93c5fd",
+    icon:   <IconInfoCircle size={15} />
+  }
 } as const;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -217,30 +238,16 @@ export default function Template(props: TemplateProps) {
         >
           {/* Logo + nombre */}
           <Stack align="center" gap={6} mb={32}>
-            <Box
+            <img
+              src={`${BASE_URL}logo.png`}
+              alt="Saga Ops"
               style={{
-                width:        52,
-                height:       52,
-                borderRadius: 16,
-                background:   `linear-gradient(135deg, ${d.primary} 0%, ${d.primaryLight} 100%)`,
-                boxShadow:    `0 0 28px rgba(37,99,235,0.55), 0 8px 20px rgba(0,0,0,0.4)`,
-                display:      "flex",
-                alignItems:   "center",
-                justifyContent: "center"
+                width:      56,
+                height:     56,
+                objectFit:  "contain",
+                filter:     "drop-shadow(0 0 18px rgba(37,99,235,0.55))",
               }}
-            >
-              <Text
-                style={{
-                  color:      "white",
-                  fontWeight: 800,
-                  fontSize:   "1.375rem",
-                  fontFamily: '"Outfit", sans-serif',
-                  lineHeight: 1
-                }}
-              >
-                S
-              </Text>
-            </Box>
+            />
 
             <Text
               style={{
@@ -262,19 +269,31 @@ export default function Template(props: TemplateProps) {
           {/* Separador */}
           <Box style={{ height: 1, background: "rgba(255,255,255,0.07)", marginBottom: 28 }} />
 
-          {/* Alerta de Keycloak */}
-          {message && (
-            <Alert
-              icon={alertConfig[message.type as keyof typeof alertConfig]?.icon ?? <IconInfoCircle size={16} />}
-              color={alertConfig[message.type as keyof typeof alertConfig]?.color ?? "blue"}
-              variant="light"
-              radius="md"
-              mb="lg"
-              styles={{ message: { fontSize: "0.875rem" } }}
-            >
-              {message.summary}
-            </Alert>
-          )}
+          {/* Alerta de Keycloak (glass-native) */}
+          {message && (() => {
+            const cfg = glassAlert[message.type as keyof typeof glassAlert] ?? glassAlert.info;
+            return (
+              <Box
+                style={{
+                  display:      "flex",
+                  alignItems:   "flex-start",
+                  gap:          10,
+                  background:   cfg.bg,
+                  border:       `1px solid ${cfg.border}`,
+                  borderRadius: 10,
+                  padding:      "11px 14px",
+                  marginBottom: 20
+                }}
+              >
+                <Box style={{ color: cfg.color, flexShrink: 0, marginTop: 1 }}>
+                  {cfg.icon}
+                </Box>
+                <Text style={{ color: cfg.color, fontSize: "0.875rem", lineHeight: 1.5 }}>
+                  {message.summary}
+                </Text>
+              </Box>
+            );
+          })()}
 
           {/* Header para páginas DefaultPage (register, forgot-password, etc.) */}
           {headerNode && (
