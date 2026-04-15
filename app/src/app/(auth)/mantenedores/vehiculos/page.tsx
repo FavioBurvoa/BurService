@@ -49,12 +49,9 @@ const columns: ColumnConfig<Vehiculo>[] = [
       search: { enabled: true },
     },
     editor: {
-      type: 'text',
-      placeholder: 'Ej: ABCD12',
+      type: 'patente',
       validation: {
-        pattern: /^[a-zA-Z0-9]+$/,
-        patternMessage: 'Solo se permiten caracteres alfanuméricos',
-        maxLength: 20,
+        maxLength: 10,
       },
     },
     formatter: (value) => (

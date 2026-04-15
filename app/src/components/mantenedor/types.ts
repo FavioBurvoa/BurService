@@ -29,7 +29,7 @@ export type DataType = 'string' | 'number' | 'boolean' | 'date' | 'enum' | 'file
 /**
  * Tipos de editores para formularios
  */
-export type EditorType = 'text' | 'number' | 'switch' | 'select' | 'multiselect' | 'textarea' | 'date' | 'password' | 'file';
+export type EditorType = 'text' | 'number' | 'switch' | 'select' | 'multiselect' | 'textarea' | 'date' | 'password' | 'file' | 'rut' | 'patente';
 
 /**
  * Configuración de uso de columna en diferentes contextos

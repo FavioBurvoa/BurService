@@ -54,8 +54,7 @@ const columns: ColumnConfig<Contribuyente>[] = [
       search: { enabled: true },
     },
     editor: {
-      type: 'text',
-      placeholder: 'Ej: 12.345.678-9',
+      type: 'rut',
       validation: {
         maxLength: 20,
       },

@@ -46,6 +46,9 @@ import {
   IconFile,
 } from '@tabler/icons-react';
 import { colors } from '@/styles/theme';
+import { RutInput } from '@/components/ui/RutInput';
+import { PatenteInput } from '@/components/ui/PatenteInput';
+import { displayRut, displayPatente } from '@/lib/formatters';
 import type { MantenedorConfig, RowSelection, ColumnOverrides } from './types';
 import { useMantenedor } from './useMantenedor';
 import {
@@ -583,7 +586,11 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
                       <Table.Td key={String(column.key)}>
                         {column.formatter
                           ? column.formatter(row[column.key], row, combos)
-                          : column.editor?.type === 'multiselect' && column.editor.optionsKey
+                          : column.editor?.type === 'rut'
+                            ? displayRut(String(row[column.key] ?? ''))
+                            : column.editor?.type === 'patente'
+                              ? displayPatente(String(row[column.key] ?? ''))
+                              : column.editor?.type === 'multiselect' && column.editor.optionsKey
                             ? resolveComboTextMulti(row[column.key], column.editor.optionsKey, combos)
                             : column.editor?.type === 'select' && column.editor.optionsKey
                               ? resolveComboText(row[column.key], column.editor.optionsKey, combos)
@@ -845,6 +852,34 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
                           if (fe.base64Key) form.setFieldValue(fe.base64Key, base64);
                         }
                       }}
+                    />
+                  );
+                }
+
+                if (column.editor?.type === 'rut') {
+                  return (
+                    <RutInput
+                      key={colKey}
+                      {...commonProps}
+                      placeholder={column.editor.placeholder}
+                      value={String(form.values[colKey] ?? '')}
+                      onChange={(raw) => form.setFieldValue(colKey, raw)}
+                      onBlur={(normalized) => form.setFieldValue(colKey, normalized)}
+                      error={form.errors[colKey]}
+                    />
+                  );
+                }
+
+                if (column.editor?.type === 'patente') {
+                  return (
+                    <PatenteInput
+                      key={colKey}
+                      {...commonProps}
+                      placeholder={column.editor.placeholder}
+                      value={String(form.values[colKey] ?? '')}
+                      onChange={(raw) => form.setFieldValue(colKey, raw)}
+                      onBlur={(normalized) => form.setFieldValue(colKey, normalized)}
+                      error={form.errors[colKey]}
                     />
                   );
                 }

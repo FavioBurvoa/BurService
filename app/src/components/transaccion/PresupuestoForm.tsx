@@ -19,6 +19,8 @@ import {
   IconChevronDown, IconChevronUp,
 } from '@tabler/icons-react';
 import { PdfButton } from '@/components/ui/PdfButton';
+import { RutInput } from '@/components/ui/RutInput';
+import { PatenteInput } from '@/components/ui/PatenteInput';
 import { useRouter } from 'next/navigation';
 import { colors } from '@/styles/theme';
 import { useTransaccion } from './useTransaccion';
@@ -611,12 +613,14 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                 </Text>
 
                 <Group gap="xs" align="flex-end" wrap="wrap">
-                  <TextInput
+                  <RutInput
                     label="RUT"
-                    placeholder="12.345.678-9"
                     value={encabezado.cliente.rut ?? ''}
-                    onChange={(e) => setClienteField('rut', e.currentTarget.value)}
-                    onBlur={() => lookupRut(encabezado.cliente.rut, 'cliente')}
+                    onChange={(raw) => setClienteField('rut', raw)}
+                    onBlur={(normalized) => {
+                      setClienteField('rut', normalized);
+                      lookupRut(normalized, 'cliente');
+                    }}
                     style={{ flex: '0 0 140px' }}
                     size="sm"
                   />
@@ -679,14 +683,16 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                 {/* DESKTOP: una sola fila */}
                 <Box visibleFrom="md">
                   <Group gap="xs" align="flex-end" wrap="nowrap">
-                    <TextInput
+                    <PatenteInput
                       label="Patente"
-                      placeholder="ABCD12"
                       value={encabezado.vehiculo.patente}
-                      onChange={(e) => setVehiculoField('patente', e.currentTarget.value.toUpperCase())}
-                      onBlur={() => lookupPatente(encabezado.vehiculo.patente)}
+                      onChange={(raw) => setVehiculoField('patente', raw)}
+                      onBlur={(normalized) => {
+                        setVehiculoField('patente', normalized);
+                        lookupPatente(normalized);
+                      }}
                       style={{ flex: '0 0 110px' }}
-                      styles={{ input: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }}
+                      styles={{ input: { letterSpacing: '0.1em', fontWeight: 600 } }}
                       size="sm"
                     />
                     <Tooltip label="Buscar historial por patente">
@@ -712,14 +718,16 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
                 <Box hiddenFrom="md">
                   <Stack gap="xs">
                     <Group gap="xs" align="flex-end">
-                      <TextInput
+                      <PatenteInput
                         label="Patente"
-                        placeholder="ABCD12"
                         value={encabezado.vehiculo.patente}
-                        onChange={(e) => setVehiculoField('patente', e.currentTarget.value.toUpperCase())}
-                        onBlur={() => lookupPatente(encabezado.vehiculo.patente)}
+                        onChange={(raw) => setVehiculoField('patente', raw)}
+                        onBlur={(normalized) => {
+                          setVehiculoField('patente', normalized);
+                          lookupPatente(normalized);
+                        }}
                         style={{ flex: '0 0 110px' }}
-                        styles={{ input: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }}
+                        styles={{ input: { letterSpacing: '0.1em', fontWeight: 600 } }}
                         size="sm"
                       />
                       <Tooltip label="Buscar historial por patente">
@@ -752,15 +760,14 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
           {encabezado.sw_facturar && !encabezado.sw_mismo_cliente && encabezado.contribuyente && (
             <SectionCard icon={<IconBuilding size={14} />} title="Contribuyente">
               <Group gap="sm" align="flex-end">
-                <TextInput
+                <RutInput
                   label="RUT"
-                  placeholder="76.543.210-K"
                   value={encabezado.contribuyente.rut ?? ''}
-                  onChange={(e) => setContribuyenteField('rut', e.currentTarget.value)}
-                  onBlur={() =>
-                    encabezado.contribuyente &&
-                    lookupRut(encabezado.contribuyente.rut, 'contribuyente')
-                  }
+                  onChange={(raw) => setContribuyenteField('rut', raw)}
+                  onBlur={(normalized) => {
+                    setContribuyenteField('rut', normalized);
+                    lookupRut(normalized, 'contribuyente');
+                  }}
                   style={{ flex: '0 0 160px' }}
                   size="sm"
                 />

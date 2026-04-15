@@ -212,8 +212,9 @@ Requiere un reverse proxy (nginx o traefik) que termine TLS y pase tráfico al p
 
 ### PASO 8 — Mejoras de seguridad pendientes (post-producción)
 
-- **Refresh token rotation**: el callback `jwt` en `app/src/lib/auth.ts` no renueva el access token cuando expira. Sin esto la sesión muere cada 5 minutos sin posibilidad de renovarse.
-- **Logout federado**: al hacer signOut solo se destruye la sesión de NextAuth, la sesión en Keycloak sigue activa. Hay que llamar al endpoint de logout de Keycloak en el signOut.
+- **Refresh token rotation**: el callback `jwt` en `app/src/lib/auth.ts` no renueva el access token cuando expira. Sin esto la sesión muere cada 5 minutos sin posibilidad de renovarse. [IMPLEMENTADO]
+- **Logout federado**: al hacer signOut solo se destruye la sesión de NextAuth, la sesión en Keycloak sigue activa. Hay que llamar al endpoint de logout de Keycloak en el signOut. [IMPLEMENTADO]
+
 
 
 0.13

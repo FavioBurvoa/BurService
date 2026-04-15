@@ -71,11 +71,10 @@ const columns: ColumnConfig<Empresa>[] = [
     required: true,
     usage: { grid: { visible: true }, form: { visible: true, editable: true, colSpan: 1 } },
     editor: {
-      type: 'text',
-      placeholder: 'Ej: 76.123.456-7',
+      type: 'rut',
       validation: {
-        pattern: /^\d{1,3}(\.\d{3})*-[\dkK]$/,
-        patternMessage: 'Formato RUT inválido (ej: 76.123.456-7)',
+        pattern: /^\d{1,8}-[\dkK]$/,
+        patternMessage: 'Formato RUT inválido (ej: 76123456-7)',
         maxLength: 20,
       },
     },
