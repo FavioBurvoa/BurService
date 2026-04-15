@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { NextResponse } from 'next/server';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, handleRouteError } from '@/lib/apiClient';
 import type { ApiResponse } from '@/components/mantenedor/types';
 
 interface Vehiculo {
@@ -24,14 +24,8 @@ export async function GET() {
   try {
     const data = await apiFetch<Vehiculo[]>('/vehiculos');
     return NextResponse.json(data);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al conectar con el servidor',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }
 
@@ -44,14 +38,8 @@ export async function POST(request: Request) {
 
     const data = await apiFetch<Vehiculo>('/vehiculos', { method, body });
     return NextResponse.json(data);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al procesar la solicitud',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }
 
@@ -83,13 +71,7 @@ export async function DELETE(request: Request) {
       ...lastResult,
       message: `${items.length} vehículo${items.length > 1 ? 's' : ''} eliminado${items.length > 1 ? 's' : ''} correctamente`,
     });
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al eliminar vehículos',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }

@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { NextResponse } from 'next/server';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, handleRouteError } from '@/lib/apiClient';
 import type { ApiResponse } from '@/components/mantenedor/types';
 
 interface FolioCaf {
@@ -29,14 +29,8 @@ export async function GET(request: Request) {
     const url = idEmpresa ? `/folios-caf?id_empresa=${idEmpresa}` : '/folios-caf';
     const data = await apiFetch<FolioCaf[]>(url);
     return NextResponse.json(data);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al conectar con el servidor',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }
 
@@ -49,14 +43,8 @@ export async function POST(request: Request) {
 
     const data = await apiFetch<FolioCaf>('/folios-caf', { method, body });
     return NextResponse.json(data);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al procesar la solicitud',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }
 
@@ -88,13 +76,7 @@ export async function DELETE(request: Request) {
       ...lastResult,
       message: `${items.length} folio${items.length > 1 ? 's' : ''} CAF eliminado${items.length > 1 ? 's' : ''} correctamente`,
     });
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al eliminar folios CAF',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }

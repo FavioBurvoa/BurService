@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { NextResponse } from 'next/server';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, handleRouteError } from '@/lib/apiClient';
 import type { ApiResponse } from '@/components/mantenedor/types';
 import type { TipoPresupuestoConfig, TipoDetalleConfig } from '@/components/transaccion/types';
 
@@ -46,13 +46,7 @@ export async function GET(
       timestamp: new Date().toISOString(),
     };
     return NextResponse.json(response);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al obtener configuración del tipo de presupuesto',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }

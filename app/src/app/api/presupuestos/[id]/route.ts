@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { NextResponse } from 'next/server';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, handleRouteError } from '@/lib/apiClient';
 import type { ApiResponse } from '@/components/mantenedor/types';
 
 export async function GET(
@@ -16,13 +16,7 @@ export async function GET(
     const { id } = await params;
     const data = await apiFetch(`/presupuestos/${id}`);
     return NextResponse.json(data);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al obtener el presupuesto',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }

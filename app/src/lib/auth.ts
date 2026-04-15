@@ -1,94 +1,152 @@
 import NextAuth from "next-auth"
 import type { NextAuthConfig } from "next-auth"
+import type { JWT } from "next-auth/jwt"
 import KeycloakProvider from "next-auth/providers/keycloak"
-import CredentialsProvider from "next-auth/providers/credentials"
 
-const USE_MOCK_AUTH = process.env.USE_MOCK_AUTH === 'true';
+// Map para evitar refreshes concurrentes del mismo usuario (best-effort, proceso único)
+const refreshingTokens = new Map<string, Promise<JWT>>()
 
-console.log('[Auth] USE_MOCK_AUTH:', USE_MOCK_AUTH);
-console.log('[Auth] KEYCLOAK_ISSUER:', process.env.KEYCLOAK_ISSUER);
-console.log('[Auth] KEYCLOAK_ID:', process.env.KEYCLOAK_ID);
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+  const controller = new AbortController()
+  const timeoutId  = setTimeout(() => controller.abort(), 5000)
+
+  try {
+    const issuer   = process.env.KEYCLOAK_ISSUER!
+    const response = await fetch(`${issuer}/protocol/openid-connect/token`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type:    'refresh_token',
+        client_id:     process.env.KEYCLOAK_ID!,
+        client_secret: process.env.KEYCLOAK_SECRET!,
+        refresh_token: token.refreshToken!,
+      }),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}))
+      console.error('[JWT] Refresh token fallido:', response.status, errorBody)
+      throw new Error('Refresh token inválido o revocado')
+    }
+
+    const tokens = await response.json()
+
+    return {
+      ...token,
+      accessToken:  tokens.access_token,
+      refreshToken: tokens.refresh_token ?? token.refreshToken,
+      idToken:      tokens.id_token      ?? token.idToken,
+      expiresAt:    Date.now() + tokens.expires_in * 1000,
+      error:        undefined,
+    }
+  } catch (err) {
+    clearTimeout(timeoutId)
+    console.error('[JWT] Error al renovar el access token:', err)
+    return {
+      ...token,
+      accessToken:  undefined,
+      refreshToken: undefined,
+      idToken:      undefined,
+      error:        'RefreshAccessTokenError',
+    }
+  }
+}
 
 export const authConfig: NextAuthConfig = {
-  providers: USE_MOCK_AUTH
-    ? [
-        CredentialsProvider({
-          id: 'credentials',
-          name: 'Desarrollo (Mock)',
-          credentials: {
-            email: { label: 'Email', type: 'email' },
-            password: { label: 'Password', type: 'password' },
-          },
-          async authorize(credentials) {
-            console.log('[Auth] Mock login attempt for:', credentials?.email);
-            if (credentials?.email === 'demo@bur-service.com' && credentials?.password === 'demo123') {
-              return {
-                id: '1',
-                name: 'Usuario Demo',
-                email: 'demo@bur-service.com',
-              }
-            }
-            return null
-          },
-        }),
-      ]
-    : [
-        KeycloakProvider({
-          clientId: process.env.KEYCLOAK_ID!,
-          clientSecret: process.env.KEYCLOAK_SECRET!,
-          issuer: process.env.KEYCLOAK_ISSUER,
-        }),
-      ],
-  
+  providers: [
+    KeycloakProvider({
+      clientId:     process.env.KEYCLOAK_ID!,
+      clientSecret: process.env.KEYCLOAK_SECRET!,
+      issuer:       process.env.KEYCLOAK_ISSUER,
+    }),
+  ],
+
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 60,
+    maxAge:   30 * 60,
   },
 
   pages: {
     signIn: '/login',
-    error: '/login',
+    error:  '/login',
   },
 
   callbacks: {
     async jwt({ token, account, user }) {
+      // Login inicial — persistir todos los tokens
       if (account && user) {
-        console.log('[JWT] New sign in for user:', user.email);
+        console.log('[JWT] New sign in for user:', user.email)
         return {
           ...token,
-          accessToken: account.access_token,
+          accessToken:  account.access_token,
           refreshToken: account.refresh_token,
-          expiresAt: account.expires_at,
+          idToken:      account.id_token,
+          expiresAt:    Date.now() + ((account.expires_in ?? 300) as number) * 1000,
         }
       }
-      return token
+
+      // Token aún válido (margen de 60 segundos)
+      if (typeof token.expiresAt === 'number' && Date.now() < token.expiresAt - 60 * 1000) {
+        return token
+      }
+
+      // Sin refresh token: no se puede renovar
+      if (!token.refreshToken) {
+        console.error('[JWT] No hay refresh token disponible')
+        return { ...token, error: 'RefreshAccessTokenError' as const }
+      }
+
+      // Renovar — deduplicar requests concurrentes del mismo usuario
+      const userId = token.sub ?? 'unknown'
+
+      if (!refreshingTokens.has(userId)) {
+        const refreshPromise = refreshAccessToken(token).finally(() => {
+          refreshingTokens.delete(userId)
+        })
+        refreshingTokens.set(userId, refreshPromise)
+      }
+
+      return refreshingTokens.get(userId)!
     },
 
     async session({ session, token }) {
+      // accessToken NO se expone al cliente — vive solo en el JWT encriptado (server-side)
       return {
         ...session,
-        accessToken: token.accessToken,
         error: token.error,
       }
     },
 
     authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user
+      const isLoggedIn    = !!auth?.user
+      const hasError      = auth?.error === 'RefreshAccessTokenError'
       const isOnLoginPage = nextUrl.pathname === '/login'
-      
+      const isApiRoute    = nextUrl.pathname.startsWith('/api/')
+
       if (isOnLoginPage) {
-        if (isLoggedIn) return Response.redirect(new URL('/dashboard', nextUrl))
+        if (isLoggedIn && !hasError) return Response.redirect(new URL('/dashboard', nextUrl))
         return true
       }
 
-      if (isLoggedIn) return true
-      
-      return false
+      if (hasError || !isLoggedIn) {
+        if (isApiRoute) {
+          return Response.json(
+            { success: false, message: 'Sesión expirada', data: null },
+            { status: 401 },
+          )
+        }
+        return Response.redirect(new URL('/login', nextUrl))
+      }
+
+      return true
     },
   },
 
   trustHost: true,
-  debug: false,
+  debug:     false,
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)

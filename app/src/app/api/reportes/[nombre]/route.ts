@@ -17,7 +17,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, handleRouteError } from '@/lib/apiClient';
 import type { ApiResponse } from '@/components/mantenedor/types';
 
 const REPORTE_SVC_URL = process.env.REPORTE_SVC_URL;

@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { NextResponse } from 'next/server';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, handleRouteError } from '@/lib/apiClient';
 import type { ApiResponse } from '@/components/mantenedor/types';
 
 interface TipoPresupuesto {
@@ -30,14 +30,8 @@ export async function GET(request: Request) {
     const url = idEmpresa ? `/tipos-presupuesto?id_empresa=${idEmpresa}` : '/tipos-presupuesto';
     const data = await apiFetch<TipoPresupuesto[]>(url);
     return NextResponse.json(data);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al conectar con el servidor',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }
 
@@ -50,14 +44,8 @@ export async function POST(request: Request) {
 
     const data = await apiFetch<TipoPresupuesto>('/tipos-presupuesto', { method, body });
     return NextResponse.json(data);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al procesar la solicitud',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }
 
@@ -89,13 +77,7 @@ export async function DELETE(request: Request) {
       ...lastResult,
       message: `${items.length} tipo${items.length > 1 ? 's' : ''} de presupuesto eliminado${items.length > 1 ? 's' : ''} correctamente`,
     });
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al eliminar tipos de presupuesto',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }

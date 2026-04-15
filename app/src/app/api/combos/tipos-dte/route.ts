@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { NextResponse } from 'next/server';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, handleRouteError } from '@/lib/apiClient';
 import type { ApiResponse, ComboOption } from '@/components/mantenedor/types';
 
 interface TipoDte {
@@ -35,13 +35,7 @@ export async function GET() {
     };
 
     return NextResponse.json(response);
-  } catch {
-    const response: ApiResponse = {
-      success:   false,
-      message:   'Error al obtener combo de tipos DTE',
-      data:      null,
-      timestamp: new Date().toISOString(),
-    };
-    return NextResponse.json(response, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }

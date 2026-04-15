@@ -6,7 +6,6 @@
 
 import { useSession } from 'next-auth/react';
 import { signIn, signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 
 /**
  * Hook personalizado para manejar autenticación
@@ -15,7 +14,6 @@ import { useRouter } from 'next/navigation';
  */
 export function useAuth() {
   const { data: session, status } = useSession();
-  const router = useRouter();
 
   const isAuthenticated = status === 'authenticated';
   const isLoading = status === 'loading';
@@ -28,19 +26,26 @@ export function useAuth() {
   };
 
   /**
-   * Cerrar sesión
+   * Cerrar sesión: limpia la sesión NextAuth server-side y cierra
+   * la sesión en Keycloak (logout federado).
    */
   const logout = async () => {
-    await signOut({ callbackUrl: '/login' });
-  };
+    try {
+      const res = await fetch('/api/auth/logout', {
+        method:  'POST',
+        headers: { Origin: window.location.origin },
+      });
 
-  /**
-   * Redirigir a página de login si no está autenticado
-   */
-  const requireAuth = () => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      if (res.ok) {
+        const { logoutUrl } = await res.json() as { logoutUrl: string };
+        window.location.href = logoutUrl;
+        return;
+      }
+    } catch {
+      // Si la API route falla, caer al logout local de NextAuth
     }
+
+    await signOut({ callbackUrl: '/login' });
   };
 
   return {
@@ -50,6 +55,5 @@ export function useAuth() {
     isLoading,
     login,
     logout,
-    requireAuth,
   };
 }

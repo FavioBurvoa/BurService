@@ -11,7 +11,8 @@ import {
   IconSettings,
   IconChevronDown,
 } from '@tabler/icons-react';
-import { signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { useAuth } from '@/hooks/useAuth';
 import { colors } from '@/styles/theme';
 
 interface HeaderProps {
@@ -24,12 +25,7 @@ interface HeaderProps {
  */
 export function Header({ title }: HeaderProps) {
   const { data: session } = useSession();
-
-  const handleSignOut = async () => {
-    await signOut({
-      callbackUrl: '/login',
-    });
-  };
+  const { logout } = useAuth();
 
   return (
     <Box
@@ -111,7 +107,7 @@ export function Header({ title }: HeaderProps) {
           <Menu.Item
             leftSection={<IconLogout size={16} />}
             color="red"
-            onClick={handleSignOut}
+            onClick={logout}
           >
             Cerrar Sesión
           </Menu.Item>

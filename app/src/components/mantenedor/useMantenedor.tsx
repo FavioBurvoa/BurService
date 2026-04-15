@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import type { ApiResponse, MantenedorConfig, ComboOption } from './types';
+import { clientFetch } from '@/lib/clientFetch';
 
 /**
  * Hook principal para manejar el estado y operaciones del mantenedor
@@ -28,11 +29,11 @@ export function useMantenedor<T extends Record<string, any>>(
     queryKey: ['mantenedor', dataConfig.path, contextValue ?? null],
     enabled: !config.contextConfig || !!contextValue,
     queryFn: async () => {
-      let url = dataConfig.path;
+      let url: string = dataConfig.path!;
       if (config.contextConfig && contextValue) {
         url += `?${config.contextConfig.field}=${contextValue}`;
       }
-      const res = await fetch(url, {
+      const res = await clientFetch(url, {
         method: dataConfig.method,
       });
 
@@ -59,7 +60,7 @@ export function useMantenedor<T extends Record<string, any>>(
               // Datos estáticos — sin fetch
               if (endpoint.static) return endpoint.static;
 
-              const res = await fetch(endpoint.path!, {
+              const res = await clientFetch(endpoint.path!, {
                 method: endpoint.method,
               });
 
@@ -106,7 +107,7 @@ export function useMantenedor<T extends Record<string, any>>(
    */
   const saveMutation = useMutation({
     mutationFn: async (record: T) => {
-      const res = await fetch(saveConfig.path, {
+      const res = await clientFetch(saveConfig.path!, {
         method: saveConfig.method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(record),
@@ -158,7 +159,7 @@ export function useMantenedor<T extends Record<string, any>>(
    */
   const deleteMutation = useMutation({
     mutationFn: async (records: T[]) => {
-      const res = await fetch(deleteConfig.path, {
+      const res = await clientFetch(deleteConfig.path!, {
         method: deleteConfig.method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(records),

@@ -20,6 +20,7 @@ import { PdfButton } from '@/components/ui/PdfButton';
 import { colors } from '@/styles/theme';
 import type { PresupuestoListItem } from '@/components/transaccion/types';
 import type { ApiResponse, ComboOption } from '@/components/mantenedor/types';
+import { clientFetch } from '@/lib/clientFetch';
 
 // ============================================================================
 // HELPERS
@@ -85,7 +86,7 @@ export default function HojaVidaVehiculoPage() {
   const { data: empresas } = useQuery<ComboOption[]>({
     queryKey: ['combo', 'empresas'],
     queryFn: async () => {
-      const res = await fetch('/api/combos/empresas');
+      const res = await clientFetch('/api/combos/empresas');
       const r: ApiResponse<ComboOption[]> = await res.json();
       return r.data ?? [];
     },
@@ -104,7 +105,7 @@ export default function HojaVidaVehiculoPage() {
       const params = new URLSearchParams({ id_empresa: idEmpresa, patente });
       if (fechaDesde) params.set('fecha_desde', fechaDesde);
       if (fechaHasta) params.set('fecha_hasta', fechaHasta);
-      const res = await fetch(`/api/presupuestos?${params.toString()}`);
+      const res = await clientFetch(`/api/presupuestos?${params.toString()}`);
       const r: ApiResponse<PresupuestoListItem[]> = await res.json();
       if (!r.success) throw new Error(r.message);
       return r.data ?? [];

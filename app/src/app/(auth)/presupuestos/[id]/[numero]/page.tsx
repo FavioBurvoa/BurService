@@ -12,6 +12,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Center, Loader, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { colors } from '@/styles/theme';
+import { clientFetch, SessionExpiredError } from '@/lib/clientFetch';
 
 export default function PresupuestoPorEmpresaNumeroPage() {
   const router = useRouter();
@@ -22,11 +23,12 @@ export default function PresupuestoPorEmpresaNumeroPage() {
     const numero = params.numero;
     if (!codigoEmpresa || !numero) return;
 
-    fetch(
-      `/api/presupuestos/lookup/numero?codigo_empresa=${encodeURIComponent(codigoEmpresa)}&numero=${encodeURIComponent(numero)}`
-    )
-      .then((r) => r.json())
-      .then((res) => {
+    async function doLookup() {
+      try {
+        const r = await clientFetch(
+          `/api/presupuestos/lookup/numero?codigo_empresa=${encodeURIComponent(codigoEmpresa)}&numero=${encodeURIComponent(numero)}`
+        );
+        const res = await r.json();
         if (!res.success || !res.data?.id) {
           notifications.show({
             title: 'No encontrado',
@@ -37,15 +39,17 @@ export default function PresupuestoPorEmpresaNumeroPage() {
           return;
         }
         router.replace(`/presupuestos/${res.data.id}`);
-      })
-      .catch(() => {
+      } catch (err) {
+        if (err instanceof SessionExpiredError) return;
         notifications.show({
           title: 'Error',
           message: 'No se pudo resolver el presupuesto',
           color: 'red',
         });
         router.replace('/presupuestos/lista');
-      });
+      }
+    }
+    doLookup();
   }, [params, router]);
 
   return (

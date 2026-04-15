@@ -19,6 +19,7 @@ import { PdfButton } from '@/components/ui/PdfButton';
 import { colors } from '@/styles/theme';
 import type { PresupuestoListItem } from '@/components/transaccion/types';
 import type { ApiResponse, ComboOption } from '@/components/mantenedor/types';
+import { clientFetch } from '@/lib/clientFetch';
 
 // ============================================================================
 // CONSTANTES
@@ -83,7 +84,7 @@ export default function ListaPresupuestosPage() {
   const { data: empresas } = useQuery<ComboOption[]>({
     queryKey: ['combo', 'empresas'],
     queryFn: async () => {
-      const res = await fetch('/api/combos/empresas');
+      const res = await clientFetch('/api/combos/empresas');
       const r: ApiResponse<ComboOption[]> = await res.json();
       return r.data ?? [];
     },
@@ -101,7 +102,7 @@ export default function ListaPresupuestosPage() {
     queryFn: async () => {
       const params = new URLSearchParams({ id_empresa: idEmpresa, fecha_desde: fechaDesde, fecha_hasta: fechaHasta });
       if (estado) params.set('estado', estado);
-      const res = await fetch(`/api/presupuestos?${params.toString()}`);
+      const res = await clientFetch(`/api/presupuestos?${params.toString()}`);
       const r: ApiResponse<PresupuestoListItem[]> = await res.json();
       if (!r.success) throw new Error(r.message);
       return r.data ?? [];
