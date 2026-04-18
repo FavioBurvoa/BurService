@@ -1,20 +1,27 @@
-# Mantenedor Genérico
+# Mantenedor Generico
 
-Componente reutilizable para crear CRUDs con grid, modal de edición/creación, búsqueda, selección múltiple y eliminación masiva.
+Componente reutilizable para crear CRUDs con grid, modal de edicion/creacion, busqueda, seleccion multiple y eliminacion masiva.
 
-## Características
+## Caracteristicas
 
-✅ **Grid configurable** con selección múltiple
-✅ **Modal único** para crear/editar
-✅ **Búsqueda global** en todas las columnas
-✅ **Combos dependientes** (ej: marca → modelo)
-✅ **Validación** con Zod
-✅ **React Query** para data fetching
-✅ **Eliminación** individual y masiva
-✅ **Resolución automática** de IDs → texto en combos
-✅ **Estilos consistentes** con paleta del proyecto
+- **Grid configurable** con seleccion multiple
+- **Modal unico** para crear/editar
+- **Busqueda global** en todas las columnas (incluye resolucion de combos)
+- **Combos dependientes** N niveles (ej: marca -> modelo -> submodelo)
+- **Validacion** con Zod + validaciones cruzadas entre campos
+- **React Query** para data fetching con invalidacion automatica
+- **Eliminacion** individual y masiva
+- **Resolucion automatica** de IDs -> texto en combos
+- **Estilos consistentes** con paleta del proyecto
+- **Enter navigation** entre campos del formulario (configurable)
+- **Select-all on focus** al enfocar inputs con contenido (configurable)
+- **Auto-focus** en primer campo al abrir modal
+- **Context selector** para filtrar por entidad padre (ej: empresa)
+- **Dynamic config** para overrides de columna segun estado del form
+- **Cross-field validators** para validaciones que dependen de multiples campos
+- **Tipos de editor**: text, number, textarea, switch, select, multiselect, date, password, file, rut, patente
 
-## Uso Básico
+## Uso Basico
 
 ```tsx
 import { Mantenedor } from '@/components/mantenedor/Mantenedor';
@@ -34,11 +41,7 @@ const config: MantenedorConfig<MiTipo> = {
       required: true,
       editor: { type: 'text', placeholder: 'Ingrese nombre' },
     },
-    // ... más columnas
   ],
-  combos: {
-    tipos: { path: '/api/tipos', method: 'GET' },
-  },
 };
 
 export default function MiPagina() {
@@ -46,57 +49,68 @@ export default function MiPagina() {
 }
 ```
 
-## Configuración de Columnas
+## Configuracion de MantenedorConfig
 
-### Tipos de datos
+| Propiedad | Tipo | Default | Descripcion |
+|-----------|------|---------|-------------|
+| title | string | requerido | Titulo del mantenedor |
+| idField | string | 'id' | Nombre del campo PK |
+| data | EndpointConfig | requerido | Endpoint GET para datos |
+| save | EndpointConfig | requerido | Endpoint POST para guardar |
+| delete | EndpointConfig | requerido | Endpoint DELETE |
+| columns | ColumnConfig[] | requerido | Configuracion de columnas |
+| combos | CombosConfig | undefined | Configuracion de combos |
+| contextConfig | ContextConfig | undefined | Selector de entidad padre |
+| enterNavigation | boolean | true | Enter avanza al siguiente campo |
+| selectAllOnFocus | boolean | true | Selecciona texto al enfocar |
+| crossFieldValidators | Record | undefined | Validaciones cruzadas |
+| dynamicConfig | function | undefined | Overrides dinamicos por columna |
 
-- `string`: Texto
-- `number`: Números
-- `boolean`: Sí/No
-- `date`: Fechas
-- `enum`: Opciones de combo
+## Tipos de datos (dataType)
 
-### Tipos de editores
+- `string` — Texto
+- `number` — Numeros
+- `boolean` — Si/No
+- `date` — Fechas
+- `enum` — Opciones de combo
+- `file` — Archivos (base64)
 
-- `text`: Input de texto
-- `textarea`: Área de texto
-- `number`: Input numérico
-- `switch`: Switch (boolean)
-- `select`: Combo desplegable
+## Tipos de editores (EditorType)
 
-### Ejemplo completo
+| Editor | Componente Mantine | Notas |
+|--------|-------------------|-------|
+| text | TextInput | Input de texto estandar |
+| number | NumberInput | Input numerico con min/max |
+| textarea | Textarea | Area de texto con rows configurable |
+| switch | Switch | Toggle boolean |
+| select | Select | Combo desplegable, soporta dependencias |
+| multiselect | MultiSelect | Seleccion multiple |
+| date | DateInput | Selector de fecha |
+| password | PasswordInput | Input con toggle de visibilidad |
+| file | FileInput | Upload con conversion a base64 |
+| rut | RutInput | Input con formato chileno (12.345.678-9) |
+| patente | PatenteInput | Input con formato chileno (AB-CD-12) |
 
-```tsx
-{
-  key: 'modelo',
-  header: 'Modelo',
-  dataType: 'enum',
-  required: true,
-  usage: {
-    grid: { visible: true },
-    form: { visible: true, editable: true, colSpan: 1 },
-    search: { enabled: true },
-  },
-  editor: {
-    type: 'select',
-    optionsKey: 'modelos',
-    dependsOn: ['marca'],  // Se habilita solo si 'marca' tiene valor
-    placeholder: 'Seleccione modelo',
-  },
-  formatter: (value, row, combos) => (
-    <Badge>{resolveComboText(value, 'modelos', combos)}</Badge>
-  ),
-}
-```
-
-## Combos Dependientes
+## Combos dependientes
 
 Para combos que dependen de otros (ej: modelo depende de marca):
 
 1. **En la columna**: Agregar `dependsOn: ['marca']`
-2. **En los datos del combo**: Incluir el campo de dependencia
+2. **En los datos del combo**: Incluir el campo de dependencia como propiedad
 
 ```tsx
+// Configuracion de columna
+{
+  key: 'modelo',
+  header: 'Modelo',
+  dataType: 'enum',
+  editor: {
+    type: 'select',
+    optionsKey: 'modelos',
+    dependsOn: ['marca'],  // Se habilita solo si 'marca' tiene valor
+  },
+}
+
 // API modelos debe retornar:
 [
   { valor: 1, texto: 'Corolla', marca: 1 },
@@ -104,40 +118,70 @@ Para combos que dependen de otros (ej: modelo depende de marca):
 ]
 ```
 
-El filtrado es **client-side** automático.
+El filtrado es **client-side** automatico via `filterComboOptions()`.
 
-## API Endpoints
+Cascadas de N niveles: cada nivel usa `dependsOn` apuntando al padre.
+Los Selects dependientes se remontan via `selectKey` cuando cambia el padre.
 
-### GET (Datos)
-```json
-{
-  "success": true,
-  "message": "Datos obtenidos",
-  "data": [{ id: 1, nombre: "..." }],
-  "timestamp": "2024-01-01T00:00:00Z"
+## Context selector
+
+Filtra el grid y pre-inyecta un campo en el formulario segun la entidad padre:
+
+```tsx
+contextConfig: {
+  field: 'idEmpresa',          // campo a inyectar
+  comboKey: 'empresas',        // combo que provee opciones
+  label: 'Empresa',
+  placeholder: 'Seleccione empresa',
 }
 ```
 
-### POST (Guardar)
-- Si el body contiene `id`, se interpreta como edición
-- Si no tiene `id`, se crea nuevo
+## Dynamic config
 
-### DELETE (Eliminar)
-- Recibe array de objetos completos: `[{id: 1, ...}, {id: 2, ...}]`
-- Funciona igual para individual o masivo
+Overrides dinamicos por columna segun el estado del formulario:
 
-### Combos
-```json
-{
-  "success": true,
-  "data": [
-    { "valor": 1, "texto": "Opción 1" },
-    { "valor": 2, "texto": "Opción 2", "campoExtra": "valor" }
-  ]
+```tsx
+dynamicConfig: (formValues, combos) => ({
+  modelo: {
+    required: !!formValues.marca,
+    disabled: !formValues.marca,
+  },
+})
+```
+
+Retorna `Record<string, { required?, visible?, disabled? }>`.
+
+## Cross-field validators
+
+Validaciones que dependen de multiples campos:
+
+```tsx
+crossFieldValidators: {
+  fechaVencimiento: (value, allValues) => {
+    if (value && allValues.fechaRegistro && value < allValues.fechaRegistro) {
+      return 'Debe ser posterior a fecha de registro';
+    }
+    return null;
+  },
 }
 ```
 
-## Validación
+## Visibilidad de columnas (ColumnUsage)
+
+```tsx
+usage: {
+  grid: { visible: true },           // visible en la tabla
+  form: {
+    visible: true,                    // visible en el modal
+    editable: true,                   // editable (si false, solo lectura)
+    editableOnCreate: true,           // editable solo al crear (disabled al editar)
+    colSpan: 2,                       // ocupa 2 columnas en el form
+  },
+  search: { enabled: true },          // incluir en busqueda global
+}
+```
+
+## Validacion
 
 ```tsx
 import { z } from 'zod';
@@ -147,42 +191,87 @@ import { z } from 'zod';
   header: 'Email',
   dataType: 'string',
   required: true,
-  validator: z.string().email('Email inválido'),
-  editor: { type: 'text' },
+  validator: z.string().email('Email invalido'),
+  editor: {
+    type: 'text',
+    validation: {
+      maxLength: 300,
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      patternMessage: 'Formato de email invalido',
+    },
+  },
 }
 ```
 
-## Formatters Personalizados
+## Formatters personalizados
 
 ```tsx
 formatter: (value, row, combos) => {
-  if (value === 'ACTIVO') {
-    return <Badge color="green">{value}</Badge>;
-  }
-  return <Badge color="gray">{value}</Badge>;
+  if (value) return <Badge color="green">Activo</Badge>;
+  return <Badge color="gray">Inactivo</Badge>;
+}
+```
+
+## Combos estaticos
+
+```tsx
+combos: {
+  ambiente: {
+    static: [
+      { valor: 'certificacion', texto: 'Certificacion' },
+      { valor: 'produccion', texto: 'Produccion' },
+    ],
+  },
+}
+```
+
+## API Endpoints esperados
+
+### GET (Datos)
+
+```json
+{
+  "success": true,
+  "message": "Datos obtenidos",
+  "data": [{ "id": 1, "nombre": "..." }],
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+### POST (Guardar)
+
+- Si el body contiene `id` -> update
+- Si no tiene `id` -> create
+
+### DELETE (Eliminar)
+
+- Recibe array de objetos completos: `[{id: 1, ...}, {id: 2, ...}]`
+- Funciona igual para individual o masivo
+
+### Combos
+
+```json
+{
+  "success": true,
+  "data": [
+    { "valor": 1, "texto": "Opcion 1" },
+    { "valor": 2, "texto": "Opcion 2", "campoExtra": "valor" }
+  ]
 }
 ```
 
 ## Archivos
 
+```text
+components/mantenedor/
+  types.ts          — Interfaces: MantenedorConfig, ColumnConfig, EditorConfig, etc.
+  helpers.ts        — filterComboOptions, isFieldEnabled, buildFormInitialValues, etc.
+  useMantenedor.tsx  — Hook con React Query (fetch, save, delete, combos)
+  Mantenedor.tsx    — Componente principal (grid + modal + form)
+  index.ts          — Re-exports
+  README.md         — Esta documentacion
 ```
-/components/mantenedor/
-├── types.ts          # Interfaces TypeScript
-├── helpers.ts        # Funciones auxiliares
-├── useMantenedor.ts  # Hook con React Query
-├── Mantenedor.tsx    # Componente principal
-└── README.md         # Esta documentación
-```
 
-## Ejemplo Completo
+## Ejemplo completo
 
-Ver: `/app/(auth)/vehiculos/lista/page.tsx`
-
-## Mejoras Futuras
-
-- ⏳ Paginación server-side
-- ⏳ Filtros avanzados por columna
-- ⏳ Export a Excel/CSV
-- ⏳ Import masivo
-- ⏳ Ordenamiento por columna
-- ⏳ Validación con schemas Zod completos
+Ver: `src/app/(auth)/mantenedores/vehiculos/page.tsx`

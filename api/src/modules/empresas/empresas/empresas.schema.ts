@@ -11,7 +11,7 @@ export const EmpresaSchema = z.object({
   id_comuna:       z.coerce.number().int().positive().nullable().optional(),
   direccion:            z.string().max(300).nullable().optional(),
   direccion_referencia: z.string().max(300).nullable().optional(),
-  email:                z.string().max(300).nullable().optional(),
+  email:                z.string().max(300).email('Formato de email inválido').nullable().optional(),
   telefono:        z.string().max(20).nullable().optional(),
   numero_resolucion_sii: z.coerce.number().int().positive().nullable().optional(),
   fecha_resolucion_sii:  z.string().nullable().optional(),

@@ -88,7 +88,8 @@ Si se detecta una inconsistencia en el código existente, mencionarla al usuario
 
 ### Stack
 
-- Next.js App Router + Mantine UI v7 + @tanstack/react-query + @mantine/notifications
+- Next.js 16 App Router + Mantine UI v8 + @tanstack/react-query + @mantine/notifications
+- Node.js + Express (backend API)
 - TypeScript. Sin Tailwind — solo Mantine y el objeto `colors` de `src/styles/theme.ts`
 - Iconos: `@tabler/icons-react` v3.36 — verificar que el ícono exista en esa versión antes de usarlo
 
@@ -145,6 +146,6 @@ src/components/<dominio>/         — componentes específicos
 ## Base de datos — consideraciones importantes
 
 - `init.sql` se ejecuta al levantar el contenedor Docker; un error puede dejarlo inutilizable
-- Los SPs usan `p_opcion INTEGER` + `p_data JSON` como firma estándar
+- Los SPs usan `p_opcion INTEGER` + `p_data JSONB` como firma estándar (parámetro JSONB, retorno JSON)
 - FKs hacia `vehiculos`, `contribuyentes`: siempre `ON DELETE RESTRICT`
 - Correlativo de presupuestos: tabla `presupuesto_numeracion` con `ON CONFLICT DO UPDATE` para atomicidad

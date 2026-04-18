@@ -28,7 +28,6 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}))
-      console.error('[JWT] Refresh token fallido:', response.status, errorBody)
       throw new Error('Refresh token inválido o revocado')
     }
 
@@ -44,7 +43,6 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     }
   } catch (err) {
     clearTimeout(timeoutId)
-    console.error('[JWT] Error al renovar el access token:', err)
     return {
       ...token,
       accessToken:  undefined,
@@ -78,7 +76,6 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, account, user }) {
       // Login inicial — persistir todos los tokens
       if (account && user) {
-        console.log('[JWT] New sign in for user:', user.email)
         return {
           ...token,
           accessToken:  account.access_token,
@@ -95,7 +92,6 @@ export const authConfig: NextAuthConfig = {
 
       // Sin refresh token: no se puede renovar
       if (!token.refreshToken) {
-        console.error('[JWT] No hay refresh token disponible')
         return { ...token, error: 'RefreshAccessTokenError' as const }
       }
 

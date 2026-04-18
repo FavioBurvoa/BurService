@@ -8,7 +8,7 @@ export const ContribuyenteSchema = z.object({
   giro:                   z.string().max(300).nullable().optional(),
   id_comuna:              z.coerce.number().int().positive().nullable().optional(),
   direccion:              z.string().max(300).nullable().optional(),
-  email:                  z.string().max(300).nullable().optional(),
+  email:                  z.string().max(300).email('Formato de email inválido').nullable().optional(),
   telefono:               z.string().max(20).nullable().optional(),
   telefono2:              z.string().max(20).nullable().optional(),
   activo:                 z.boolean().optional(),

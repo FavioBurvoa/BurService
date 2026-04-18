@@ -1,7 +1,8 @@
 // TODO: GET/POST/DELETE ${process.env.API_URL}/empresa-logo
 
 import { NextResponse } from 'next/server';
-import { apiFetch }     from '@/lib/apiClient';
+import { apiFetch, handleRouteError } from '@/lib/apiClient';
+import type { ApiResponse } from '@/components/mantenedor/types';
 
 interface EmpresaLogo {
   id?:            number;
@@ -24,9 +25,8 @@ export async function GET(request: Request) {
 
     const data = await apiFetch<EmpresaLogo[]>(path);
     return NextResponse.json(data);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Error desconocido';
-    return NextResponse.json({ success: false, message: msg, data: null }, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }
 
@@ -36,20 +36,38 @@ export async function POST(request: Request) {
     const method = body.id ? 'PUT' : 'POST';
     const data = await apiFetch<EmpresaLogo>('/empresa-logo', { method, body });
     return NextResponse.json(data);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Error desconocido';
-    return NextResponse.json({ success: false, message: msg, data: null }, { status: 500 });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const ids = searchParams.get('ids');
-    const data = await apiFetch<EmpresaLogo>(`/empresa-logo?ids=${ids}`, { method: 'DELETE' });
-    return NextResponse.json(data);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Error desconocido';
-    return NextResponse.json({ success: false, message: msg, data: null }, { status: 500 });
+    const items: EmpresaLogo[] = await request.json();
+
+    let lastResult: ApiResponse<unknown> = {
+      success:   true,
+      message:   '',
+      data:      null,
+      timestamp: new Date().toISOString(),
+    };
+
+    for (const item of items) {
+      lastResult = await apiFetch('/empresa-logo', {
+        method: 'DELETE',
+        body:   { id: item.id },
+      });
+
+      if (!lastResult.success) {
+        return NextResponse.json(lastResult, { status: 400 });
+      }
+    }
+
+    return NextResponse.json({
+      ...lastResult,
+      message: `${items.length} logo${items.length > 1 ? 's' : ''} eliminado${items.length > 1 ? 's' : ''} correctamente`,
+    });
+  } catch (err) {
+    return handleRouteError(err);
   }
 }

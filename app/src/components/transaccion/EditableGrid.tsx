@@ -305,7 +305,7 @@ export function EditableGrid({
             </Table.Tr>
           ) : (
             rows.map((row, rowIdx) => (
-              <Table.Tr key={row._tempId ?? rowIdx}>
+              <Table.Tr key={row._tempId}>
                 {columns.map((col) => {
                   const isActive = activeCell?.rowIdx === rowIdx && activeCell?.colKey === col.key;
                   const isEditable = col.editable !== false && col.type !== 'readonly' && !disabled;
