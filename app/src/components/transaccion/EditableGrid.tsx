@@ -13,6 +13,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Table, ActionIcon, Group, Text, Switch, Tooltip } from '@mantine/core';
 import { IconTrash, IconPlus } from '@tabler/icons-react';
 import { colors } from '@/styles/theme';
+import { formatCLP, parseCLP } from '@/lib/formatters';
 
 // ============================================================================
 // TIPOS
@@ -42,20 +43,6 @@ interface EditableGridProps {
 // ============================================================================
 // HELPERS DE FORMATO
 // ============================================================================
-
-function formatCLP(v: any): string {
-  if (v === null || v === undefined || v === '') return '';
-  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\./g, ''));
-  if (isNaN(n)) return '';
-  return Math.round(n).toLocaleString('es-CL');
-}
-
-function parseCLP(s: string): number | null {
-  const clean = s.replace(/\./g, '').replace(',', '.').trim();
-  if (clean === '') return null;
-  const n = parseFloat(clean);
-  return isNaN(n) ? null : Math.round(n);
-}
 
 function formatDisplay(col: EditableColumn, value: any): string {
   if (value === null || value === undefined) return '';
@@ -93,18 +80,6 @@ export function EditableGrid({
     }
   }, [activeCell?.rowIdx, activeCell?.colKey]);
 
-  // Focus pending cell after row addition (state async)
-  useEffect(() => {
-    if (pendingFocusRef.current && rows.length > 0) {
-      const { rowIdx, colKey } = pendingFocusRef.current;
-      if (rowIdx < rows.length) {
-        activateCell(rowIdx, colKey, rows[rowIdx]?.[colKey]);
-        pendingFocusRef.current = null;
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows.length]);
-
   const activateCell = useCallback((rowIdx: number, colKey: string, value: any) => {
     if (disabled) return;
     const col = columns.find((c) => c.key === colKey);
@@ -117,6 +92,17 @@ export function EditableGrid({
       setDraft(value !== null && value !== undefined ? String(value) : '');
     }
   }, [columns, disabled]);
+
+  // Focus pending cell after row addition (state async)
+  useEffect(() => {
+    if (pendingFocusRef.current && rows.length > 0) {
+      const { rowIdx, colKey } = pendingFocusRef.current;
+      if (rowIdx < rows.length) {
+        activateCell(rowIdx, colKey, rows[rowIdx]?.[colKey]);
+        pendingFocusRef.current = null;
+      }
+    }
+  }, [rows.length, activateCell]);
 
   /** Calcula las filas actualizadas sin efectos secundarios (sin llamar onChange) */
   const computeCommit = useCallback((rowIdx: number, colKey: string, draftValue: string): Record<string, any>[] => {

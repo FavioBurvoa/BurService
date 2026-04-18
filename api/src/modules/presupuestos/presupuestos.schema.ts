@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validarRut } from '../../lib/validarRut';
 
 const VehiculoSchema = z.object({
   patente:   z.string().max(10).optional(),
@@ -9,7 +10,7 @@ const VehiculoSchema = z.object({
 });
 
 const PersonaSchema = z.object({
-  rut:       z.string().max(20).optional(),
+  rut:       z.string().max(20).refine((v) => !v || validarRut(v), { message: 'RUT inválido' }).optional(),
   nombre:    z.string().max(300).optional(),
   giro:      z.string().max(300).nullable().optional(),
   id_comuna: z.coerce.number().int().positive().nullable().optional(),

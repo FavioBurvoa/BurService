@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { validarRut } from '../../../lib/validarRut';
 
 export const EmpresaSchema = z.object({
   id:              z.number().int().positive().optional(),
   codigo:          z.string().max(20).optional(),
-  rut:             z.string().max(20).optional(),
+  rut:             z.string().max(20).refine((v) => !v || validarRut(v), { message: 'RUT inválido' }).optional(),
   razon_social:    z.string().max(300).optional(),
   nombre_fantasia: z.string().max(300).nullable().optional(),
   giro:            z.string().max(300).nullable().optional(),

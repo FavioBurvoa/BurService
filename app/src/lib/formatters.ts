@@ -2,6 +2,67 @@
 // FORMATTERS — Normalización y display de campos con formato especial
 // ============================================================================
 
+// ── Moneda chilena (CLP) ─────────────────────────────────────────────────────
+
+/**
+ * Formatea un número a formato peso chileno con separador de miles (punto).
+ * Redondea a entero. Acepta number, string numérico, null o undefined.
+ * Ejemplos:
+ *   1234567   → '1.234.567'
+ *   '1234.5'  → '1.235'
+ *   null      → ''
+ */
+export function formatCLP(v: number | string | null | undefined): string {
+  if (v === null || v === undefined || v === '') return '';
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\./g, ''));
+  if (isNaN(n)) return '';
+  return Math.round(n).toLocaleString('es-CL');
+}
+
+/**
+ * Parsea un string en formato CLP a número.
+ * Elimina puntos de miles y convierte coma decimal.
+ * Ejemplos:
+ *   '1.234.567' → 1234567
+ *   '1.234,5'   → 1235
+ *   ''          → null
+ */
+export function parseCLP(s: string): number | null {
+  const clean = s.replace(/\./g, '').replace(',', '.').trim();
+  if (clean === '') return null;
+  const n = parseFloat(clean);
+  return isNaN(n) ? null : Math.round(n);
+}
+
+// ── RUT chileno ──────────────────────────────────────────────────────────────
+
+/**
+ * Valida un RUT chileno: formato normalizado (sin puntos, con guión, mayúsculas)
+ * + dígito verificador correcto (algoritmo módulo 11).
+ *
+ * Acepta formato DB: '12345678-9', '12345678-K'
+ * Retorna true si el RUT es válido.
+ */
+export function validarRut(rut: string): boolean {
+  if (!rut) return false;
+  const clean = rut.replace(/\./g, '').replace(/\s/g, '').toUpperCase();
+  // Debe tener formato XXXXXXXX-X (cuerpo numérico + guión + dígito)
+  const match = clean.match(/^(\d{1,8})-([0-9K])$/);
+  if (!match) return false;
+  const cuerpo = match[1];
+  const dvIngresado = match[2];
+  // Algoritmo módulo 11
+  let suma = 0;
+  let multiplicador = 2;
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += parseInt(cuerpo[i]) * multiplicador;
+    multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+  }
+  const resto = suma % 11;
+  const dvCalculado = resto === 0 ? '0' : resto === 1 ? 'K' : String(11 - resto);
+  return dvIngresado === dvCalculado;
+}
+
 /**
  * Normaliza un RUT al formato DB: sin puntos, con guión, mayúsculas.
  * Ejemplos:

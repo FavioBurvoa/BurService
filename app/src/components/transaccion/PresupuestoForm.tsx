@@ -95,7 +95,7 @@ function makeNewLinea(grupo: GrupoDetalle): DetalleLinea {
     id_tipo_detalle: grupo.id,
     descripcion: '',
     sw_exento: false,
-    cantidad: grupo.ver_cantidad ? 1 : null,
+    cantidad: 1,
     valor: null,
     total: null,
   };

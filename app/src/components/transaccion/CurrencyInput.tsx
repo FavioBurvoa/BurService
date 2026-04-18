@@ -8,22 +8,11 @@
 import { useState, useEffect } from 'react';
 import { TextInput } from '@mantine/core';
 import type { TextInputProps } from '@mantine/core';
+import { formatCLP, parseCLP } from '@/lib/formatters';
 
 interface CurrencyInputProps extends Omit<TextInputProps, 'value' | 'onChange'> {
   value: number | null;
   onChange: (value: number | null) => void;
-}
-
-function formatCLP(v: number | null | undefined): string {
-  if (v === null || v === undefined || isNaN(v)) return '';
-  return Math.round(v).toLocaleString('es-CL');
-}
-
-function parseCLP(s: string): number | null {
-  const clean = s.replace(/\./g, '').replace(',', '.').trim();
-  if (clean === '') return null;
-  const n = parseFloat(clean);
-  return isNaN(n) ? null : Math.round(n);
 }
 
 export function CurrencyInput({ value, onChange, onKeyDown, ...props }: CurrencyInputProps) {

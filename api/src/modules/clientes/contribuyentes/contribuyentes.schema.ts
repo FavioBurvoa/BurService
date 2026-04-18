@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { validarRut } from '../../../lib/validarRut';
 
 export const ContribuyenteSchema = z.object({
   id:                     z.number().int().positive().optional(),
-  rut:                    z.string().max(20).optional(),
+  rut:                    z.string().max(20).refine((v) => !v || validarRut(v), { message: 'RUT inválido' }).optional(),
   nombre:                 z.string().max(300).optional(),
   apellidos:              z.string().max(300).optional(),
   giro:                   z.string().max(300).nullable().optional(),
