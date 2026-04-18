@@ -170,6 +170,18 @@ export interface MantenedorConfig<T = any> {
     formValues: Record<string, any>,
     combos: Record<string, ComboOption[]>
   ) => Record<string, ColumnOverrides>;
+  /**
+   * Navegación con Enter entre campos del formulario modal.
+   * true (por defecto): Enter avanza al siguiente campo editable.
+   * false: Enter envía el formulario (comportamiento HTML estándar).
+   */
+  enterNavigation?: boolean;
+  /**
+   * Seleccionar todo el texto al enfocar un campo de texto con contenido.
+   * true (por defecto): el texto se selecciona para sobrescritura inmediata.
+   * false: foco estándar del browser (cursor al final).
+   */
+  selectAllOnFocus?: boolean;
 }
 
 /**

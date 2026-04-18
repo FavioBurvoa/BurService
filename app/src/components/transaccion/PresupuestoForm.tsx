@@ -21,6 +21,8 @@ import {
 import { PdfButton } from '@/components/ui/PdfButton';
 import { RutInput } from '@/components/ui/RutInput';
 import { PatenteInput } from '@/components/ui/PatenteInput';
+import { enterNavHandler } from '@/lib/enterNav';
+import { selectAllOnFocusHandler } from '@/lib/selectOnFocus';
 import { useRouter } from 'next/navigation';
 import { colors } from '@/styles/theme';
 import { useTransaccion } from './useTransaccion';
@@ -421,6 +423,9 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
         {/* ---- COLUMNA IZQUIERDA ---- */}
         <Grid.Col span={{ base: 12, md: 9 }}>
         <Stack gap="sm">
+
+          {/* Enter navega entre campos del encabezado — el EditableGrid queda fuera de este scope */}
+          <Stack gap="sm" onKeyDown={enterNavHandler} onFocus={selectAllOnFocusHandler}>
 
           {/* ENCABEZADO */}
           <SectionCard icon={<IconFileText size={14} />} title="Encabezado">
@@ -832,6 +837,8 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
               </SimpleGrid>
             </SectionCard>
           )}
+
+          </Stack>{/* /enterNavHandler */}
 
           {/* SECCIONES DE DETALLE */}
           {grupos.length === 0 && (

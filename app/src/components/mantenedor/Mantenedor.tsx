@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import {
   Table,
   Paper,
@@ -49,6 +49,8 @@ import { colors } from '@/styles/theme';
 import { RutInput } from '@/components/ui/RutInput';
 import { PatenteInput } from '@/components/ui/PatenteInput';
 import { displayRut, displayPatente } from '@/lib/formatters';
+import { enterNavHandler } from '@/lib/enterNav';
+import { selectAllOnFocusHandler } from '@/lib/selectOnFocus';
 import type { MantenedorConfig, RowSelection, ColumnOverrides } from './types';
 import { useMantenedor } from './useMantenedor';
 import {
@@ -192,6 +194,18 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
     useDisclosure(false);
 
   const isMobile = useMediaQuery('(max-width: 48em)');
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Enfoca el primer campo editable al abrir el modal.
+  // Se usa transitionProps.onEntered en el Modal para ejecutar esto DESPUÉS
+  // de que Mantine FocusTrap haya terminado — evita que FocusTrap sobreescriba el foco.
+  const focusFirstInput = useCallback(() => {
+    const first = formRef.current?.querySelector<HTMLElement>(
+      'input:not([disabled]):not([aria-disabled="true"]):not([type="hidden"]):not([type="checkbox"]):not([type="file"])',
+    );
+    first?.focus();
+  }, []);
 
   const form = useForm({
     initialValues: buildFormInitialValues(columns, null),
@@ -659,8 +673,14 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
         fullScreen={isMobile}
         closeOnClickOutside={!isSaving}
         closeOnEscape={!isSaving}
+        transitionProps={{ onEntered: focusFirstInput }}
       >
-        <form onSubmit={form.onSubmit(handleSubmit)}>
+        <form
+          ref={formRef}
+          onSubmit={form.onSubmit(handleSubmit)}
+          onKeyDown={config.enterNavigation !== false ? enterNavHandler : undefined}
+          onFocus={config.selectAllOnFocus !== false ? selectAllOnFocusHandler : undefined}
+        >
           <Stack gap="lg">
             <div
               className="mantenedor-form-grid"
