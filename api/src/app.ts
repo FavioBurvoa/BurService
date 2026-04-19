@@ -39,10 +39,16 @@ app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 // ─── 4. Rate limiting ────────────────────────────────────────────────────────
 app.use(
   rateLimit({
-    windowMs:       15 * 60 * 1000, // ventana de 15 minutos
-    max:            100,             // máximo 100 requests por IP
+    windowMs:        60 * 1000, // ventana de 1 minuto (alineado con middleware de Next.js)
+    max:             10000,     // defensa en profundidad contra acceso directo al puerto
     standardHeaders: true,
-    legacyHeaders:  false,
+    legacyHeaders:   false,
+    message:         {
+      success:   false,
+      message:   'Demasiadas solicitudes al API. Intenta nuevamente en unos segundos.',
+      data:      null,
+      timestamp: new Date().toISOString(),
+    },
   }),
 );
 

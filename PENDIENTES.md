@@ -17,17 +17,17 @@
 ## Prioridad 2 — Consistencia de código
 
 - [x] 08. Centralizar `formatCLP`/`parseCLP` en `src/lib/formatters.ts` (duplicado en CurrencyInput.tsx y EditableGrid.tsx)
-- [ ] 09. Unificar `presupuestos/route.ts` — POST/PUT separados debería ser POST con `id` condicional
+- [x] 09. ~~Unificar `presupuestos/route.ts` — POST/PUT separados debería ser POST con `id` condicional~~ — descartado: POST/PUT separados son REST correcto; la convención de CLAUDE.md aplica solo a mantenedores simples, no a transacciones
 - [x] 10. `empresa-logo/route.ts` debe usar `handleRouteError()` como las demás rutas
 - [x] 11. Remover `axios` de dependencias (no se usa, solo `fetch`)
 - [x] 12. Arreglar dependencias de hooks con `eslint-disable` en `EditableGrid.tsx`
-- [ ] 13. Extraer sección vehículo de `PresupuestoForm.tsx` a componente (duplicado desktop/mobile)
+- [x] 13. ~~Extraer sección vehículo de `PresupuestoForm.tsx` a componente (duplicado desktop/mobile)~~ — descartado: refactor diferido; el duplicado no genera bugs y funciona bien en ambos layouts
 
 ## Prioridad 3 — Robustez
 
-- [ ] 14. Agregar rate limiting en rutas API de Next.js (actualmente solo existe en Node API)
+- [x] 14. Agregar rate limiting en rutas API de Next.js (actualmente solo existe en Node API) — implementado con middleware in-memory (100 req/min por IP); migrar a Redis si se escala a multi-instance
 - [x] 15. Agregar páginas `/error.tsx` y `/not-found.tsx`
-- [ ] 16. Agregar manejo de excepción en SPs para castings inválidos (`::BIGINT`, `::SMALLINT`)
+- [x] 16. ~~Agregar manejo de excepción en SPs para castings inválidos (`::BIGINT`, `::SMALLINT`)~~ — descartado: Zod valida tipos en entrada del API; los SPs reciben datos ya validados
 - [x] 17. Reemplazar `console.log/error` en `auth.ts` por logger estructurado o eliminar
 - [x] 18. Evitar key con index fallback en EditableGrid (`_tempId ?? rowIdx`)
 - [x] 19. Monitorear estabilidad de `next-auth` beta (`5.0.0-beta.30`) — informativo, no requiere acción ahora
@@ -52,6 +52,14 @@
 - [ ] 32. Request correlation IDs para tracing
 - [ ] 33. Configurar Content-Security-Policy en Next.js
 - [ ] 34. Resource limits (memory, CPU) en docker-compose
+
+## Prioridad 6 — Autorización granular (multi-usuario)
+
+- [ ] 35. Autorización por scope de Keycloak — actualmente cualquier usuario autenticado ve todas las empresas y todas las acciones. Requiere:
+  - (a) **Restricción de empresas por usuario**: mapear `id_empresa` accesibles al usuario vía atributos/grupos Keycloak; filtrar combos de empresa y validar en backend (rechazar si `id_empresa` del request no está en el scope del usuario)
+  - (b) **Visibilidad del menú**: esconder items del sidebar según roles/scopes del JWT (ej: rol `admin` ve todo, `operador` solo ve presupuestos/vehículos)
+  - (c) **Bloqueo de acciones**: deshabilitar botones crear/editar/eliminar en mantenedores según permisos; validar también en backend vía middleware que lea `realm_access.roles` o client scopes del JWT
+  - Usar Keycloak Authorization Services (resources + scopes + policies) o roles simples según complejidad deseada
 
 ---
 

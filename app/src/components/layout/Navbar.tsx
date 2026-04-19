@@ -102,18 +102,38 @@ export function Navbar({ mobile = false, onClose, onCollapseChange }: NavbarProp
           minHeight: 56,
         }}
       >
-        {!isCollapsed && (
-          <Text
-            size="lg"
-            fw={800}
+        <Box
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: isCollapsed ? 0 : 10,
+          }}
+        >
+          <img
+            src="/logo.png"
+            alt="Saga Ops"
             style={{
-              color: colors.sidebarText,
-              letterSpacing: '-0.025em',
+              width: 28,
+              height: 28,
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 0 10px rgba(37,99,235,0.45))',
+              flexShrink: 0,
             }}
-          >
-            BUR-SERVICE
-          </Text>
-        )}
+          />
+          {!isCollapsed && (
+            <Text
+              size="lg"
+              fw={800}
+              style={{
+                color: colors.sidebarText,
+                letterSpacing: '-0.025em',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Saga Ops
+            </Text>
+          )}
+        </Box>
 
         {!mobile && (
           <Tooltip label={isCollapsed ? 'Expandir' : 'Colapsar'} position="right" withArrow>
