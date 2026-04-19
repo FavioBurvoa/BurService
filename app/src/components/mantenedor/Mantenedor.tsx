@@ -52,7 +52,7 @@ import { displayRut, displayPatente } from '@/lib/formatters';
 import { enterNavHandler } from '@/lib/enterNav';
 import { selectAllOnFocusHandler } from '@/lib/selectOnFocus';
 import type { MantenedorConfig, RowSelection, ColumnOverrides } from './types';
-import { useMantenedor } from './useMantenedor';
+import { useMantenedor, ValidationError } from './useMantenedor';
 import {
   filterRows,
   getVisibleGridColumns,
@@ -306,7 +306,23 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
       payload[idField] = editData[idField];
     }
 
-    await saveMutation.mutateAsync(payload as T);
+    try {
+      await saveMutation.mutateAsync(payload as T);
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        // Mapear errores del backend al form — el label ya se muestra arriba del input
+        const formErrors: Record<string, string> = {};
+        for (const fe of err.fieldErrors) {
+          if (!fe.field || !fe.detail) continue;
+          const key = fe.field.split('.')[0];
+          formErrors[key] = fe.detail;
+        }
+        form.setErrors(formErrors);
+      }
+      // Modal queda abierto; el usuario corrige y reintenta
+      return;
+    }
+
     setFileSelections({});
     closeModal();
     form.reset();

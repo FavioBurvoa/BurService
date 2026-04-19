@@ -42,7 +42,8 @@
 - [ ] 25. Import masivo
 - [ ] 26. Filtros avanzados por columna
 - [ ] 27. Definir página dashboard (actualmente tiene datos hardcodeados de prueba)
-- [ ] 28. Mensajes de validación descriptivos — mostrar detalle del error (ej: "RUT inválido", "Email inválido") en vez de genérico "Error validación"
+- [x] 28. Mensajes de validación descriptivos — errorMap global de Zod en español + errores inline bajo cada campo del form (`form.setErrors` en Mantenedor con los `errors[]` del backend)
+- [ ] 40. Subtotales directos (Caso 1) — recalcular total al Enter/blur, no solo al salir del campo. Hoy al tipear un valor no se refleja en el total general hasta perder el foco; afecta PresupuestoForm → PanelSubtotales
 
 ## Prioridad 5 — Producción / infraestructura
 
@@ -52,6 +53,9 @@
 - [ ] 32. Request correlation IDs para tracing
 - [ ] 33. Configurar Content-Security-Policy en Next.js
 - [ ] 34. Resource limits (memory, CPU) en docker-compose
+- [ ] 36. Rate limiter — revisar valores (`MAX_REQUESTS`, `WINDOW_MS`) según tráfico real antes de deploy; subir a ~300/min si se esperan >5 usuarios concurrentes desde mismo NAT/oficina
+- [ ] 37. Verificar config jwilder-proxy en producción — debe setear `X-Forwarded-For` con IP real del cliente (default OK, pero confirmar); loguear warning si el header no llega al middleware Next.js
+- [ ] 38. Red interna Docker — Next.js container NO debe estar expuesto directamente al exterior (solo jwilder-proxy con acceso vía red interna) para evitar spoofing de `X-Forwarded-For`
 
 ## Prioridad 6 — Autorización granular (multi-usuario)
 

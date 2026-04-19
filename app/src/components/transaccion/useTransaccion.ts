@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { notifications } from '@mantine/notifications';
+import { buildApiErrorMessage, isApiValidationError } from '@/lib/apiError';
 import type {
   EncabezadoForm,
   VehiculoForm,
@@ -337,7 +338,11 @@ export function useTransaccion(presupuestoId?: number): UseTransaccionReturn {
       });
 
       const data = await res.json();
-      if (!data.success) throw new Error(data.message ?? 'Error al guardar');
+      if (!data.success) {
+        const err = new Error(buildApiErrorMessage(data, 'Error al guardar'));
+        (err as Error & { isValidation?: boolean }).isValidation = isApiValidationError(data);
+        throw err;
+      }
 
       const newId = data.data?.encabezado?.id as number | undefined;
       if (data.data?.encabezado) {
@@ -355,10 +360,13 @@ export function useTransaccion(presupuestoId?: number): UseTransaccionReturn {
       });
       return { success: true, id: newId };
     } catch (e: any) {
+      const isValidation = e?.isValidation === true;
       notifications.show({
-        title: 'Error',
+        title: isValidation ? 'Error de validación' : 'Error',
         message: e.message ?? 'No se pudo guardar el presupuesto',
         color: 'red',
+        autoClose: isValidation ? 8000 : 4000,
+        styles: { description: { whiteSpace: 'pre-line' } },
       });
       return { success: false };
     } finally {

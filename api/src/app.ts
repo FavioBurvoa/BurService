@@ -5,6 +5,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { logger } from './config/logger';
+import { registerEsErrorMap } from './lib/zodErrorMap';
 import { errorHandler } from './middlewares/errorHandler';
 import { marcasRouter } from './modules/vehiculos/marcas/marcas.routes';
 import { modelosRouter } from './modules/vehiculos/modelos/modelos.routes';
@@ -23,6 +24,8 @@ import { tiposPresupuestoDetallesRouter } from './modules/empresas/tipos-presupu
 import { empresaLogoRouter } from './modules/empresas/empresa-logo/empresa-logo.routes';
 import { presupuestosRouter } from './modules/presupuestos/presupuestos.routes';
 import type { ApiResponse } from './types';
+
+registerEsErrorMap();
 
 export const app = express();
 

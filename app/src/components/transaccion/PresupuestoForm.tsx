@@ -23,6 +23,7 @@ import { RutInput } from '@/components/ui/RutInput';
 import { PatenteInput } from '@/components/ui/PatenteInput';
 import { enterNavHandler } from '@/lib/enterNav';
 import { selectAllOnFocusHandler } from '@/lib/selectOnFocus';
+import { buildApiErrorMessage } from '@/lib/apiError';
 import { useRouter } from 'next/navigation';
 import { colors } from '@/styles/theme';
 import { useTransaccion } from './useTransaccion';
@@ -287,7 +288,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
           body: JSON.stringify({ codigo: marcaCodigo, descripcion: marcaDesc }),
         });
         const dataM = await resM.json();
-        if (!dataM.success) throw new Error(dataM.message ?? 'Error al crear marca');
+        if (!dataM.success) throw new Error(buildApiErrorMessage(dataM, 'Error al crear marca'));
         idMarca = dataM.data.id;
         setMarcasCombos((prev) => [...prev, { valor: idMarca, texto: marcaDesc }]);
       }
@@ -299,7 +300,7 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
         body: JSON.stringify({ codigo: modeloCodigo, descripcion: modeloDesc, id_marca: idMarca }),
       });
       const dataMod = await resMod.json();
-      if (!dataMod.success) throw new Error(dataMod.message ?? 'Error al crear modelo');
+      if (!dataMod.success) throw new Error(buildApiErrorMessage(dataMod, 'Error al crear modelo'));
       const idModelo: number = dataMod.data.id;
       setModelosCombos((prev) => [...prev, { valor: idModelo, texto: modeloDesc, id_marca: idMarca }]);
 
@@ -309,7 +310,12 @@ export function PresupuestoForm({ presupuestoId }: PresupuestoFormProps) {
       setMarcaModeloModal(false);
       notifications.show({ title: 'Listo', message: 'Marca y modelo agregados correctamente', color: 'green' });
     } catch (e: any) {
-      notifications.show({ title: 'Error', message: e.message ?? 'No se pudo agregar', color: 'red' });
+      notifications.show({
+        title: 'Error',
+        message: e.message ?? 'No se pudo agregar',
+        color: 'red',
+        styles: { description: { whiteSpace: 'pre-line' } },
+      });
     } finally {
       setSavingMarcaModelo(false);
     }

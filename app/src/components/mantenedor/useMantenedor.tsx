@@ -7,8 +7,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconX } from '@tabler/icons-react';
-import type { ApiResponse, MantenedorConfig, ComboOption } from './types';
+import type { ApiResponse, ApiError, MantenedorConfig, ComboOption } from './types';
 import { clientFetch } from '@/lib/clientFetch';
+
+/**
+ * Error de validación con la lista cruda de errores por campo del backend.
+ * Permite al consumidor mapear los errores al formulario (setFieldError por campo)
+ * sin perder el mensaje general que se muestra en la notificación.
+ */
+export class ValidationError extends Error {
+  fieldErrors: ApiError[];
+  constructor(message: string, fieldErrors: ApiError[]) {
+    super(message);
+    this.name = 'ValidationError';
+    this.fieldErrors = fieldErrors;
+  }
+}
 
 /**
  * Hook principal para manejar el estado y operaciones del mantenedor
@@ -117,10 +131,7 @@ export function useMantenedor<T extends Record<string, any>>(
 
       if (!response.success) {
         if (response.errors && response.errors.length > 0) {
-          const errorMessages = response.errors
-            .map((err) => `${err.field ? err.field + ': ' : ''}${err.detail}`)
-            .join(', ');
-          throw new Error(errorMessages);
+          throw new ValidationError(response.message || 'Error de validación', response.errors);
         }
         throw new Error(response.message);
       }
@@ -145,9 +156,12 @@ export function useMantenedor<T extends Record<string, any>>(
     },
 
     onError: (error: Error) => {
+      const isValidation = error instanceof ValidationError;
       notifications.show({
-        title: 'Error al guardar',
-        message: error.message,
+        title: isValidation ? 'Error de validación' : 'Error al guardar',
+        message: isValidation
+          ? 'Revisa los errores indicados en el formulario'
+          : error.message,
         color: 'red',
         icon: <IconX size={18} />,
       });
