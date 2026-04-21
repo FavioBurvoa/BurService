@@ -5,6 +5,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Table,
   Paper,
@@ -44,6 +45,8 @@ import {
   IconDatabaseOff,
   IconBuilding,
   IconFile,
+  IconFileExport,
+  IconFileImport,
 } from '@tabler/icons-react';
 import { colors } from '@/styles/theme';
 import { RutInput } from '@/components/ui/RutInput';
@@ -53,6 +56,7 @@ import { enterNavHandler } from '@/lib/enterNav';
 import { selectAllOnFocusHandler } from '@/lib/selectOnFocus';
 import type { MantenedorConfig, RowSelection, ColumnOverrides } from './types';
 import { useMantenedor, ValidationError } from './useMantenedor';
+import { ImportModal } from './ImportModal';
 import {
   filterRows,
   getVisibleGridColumns,
@@ -192,6 +196,27 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
   const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] =
     useDisclosure(false);
+  const [importModalOpened, { open: openImportModal, close: closeImportModal }] = useDisclosure(false);
+
+  const queryClient = useQueryClient();
+
+  // Export / Import helpers (bulkOps)
+  const bulkBasePath = config.bulkOps?.basePath ?? config.data.path ?? '';
+  const canExport = !!config.bulkOps?.export && !!bulkBasePath;
+  const canImport = !!config.bulkOps?.import && !!bulkBasePath;
+  const contextField = config.contextConfig?.field;
+  const contextDisabled = !!config.contextConfig && !selectedContext;
+
+  const handleExport = () => {
+    const url = contextField && selectedContext
+      ? `${bulkBasePath}/export?${contextField}=${selectedContext}`
+      : `${bulkBasePath}/export`;
+    window.location.href = url;
+  };
+
+  const handleImportFinished = () => {
+    queryClient.invalidateQueries({ queryKey: ['mantenedor', config.data.path, selectedContext ?? null] });
+  };
 
   const isMobile = useMediaQuery('(max-width: 48em)');
 
@@ -414,6 +439,30 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
                 size="sm"
               >
                 Eliminar ({selectedCount})
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                leftSection={<IconFileExport size={16} />}
+                onClick={handleExport}
+                variant="light"
+                color="teal"
+                size="sm"
+                disabled={contextDisabled}
+              >
+                Exportar
+              </Button>
+            )}
+            {canImport && (
+              <Button
+                leftSection={<IconFileImport size={16} />}
+                onClick={openImportModal}
+                variant="light"
+                color="indigo"
+                size="sm"
+                disabled={contextDisabled}
+              >
+                Importar
               </Button>
             )}
             <Button
@@ -1003,6 +1052,21 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
           </Group>
         </Stack>
       </Modal>
+
+      {/* Modal Importar */}
+      {canImport && (
+        <ImportModal<T>
+          opened={importModalOpened}
+          onClose={closeImportModal}
+          title={title}
+          basePath={bulkBasePath}
+          columns={columns}
+          contextField={contextField}
+          contextValue={selectedContext}
+          idField={idField}
+          onFinished={handleImportFinished}
+        />
+      )}
     </Stack>
   );
 }

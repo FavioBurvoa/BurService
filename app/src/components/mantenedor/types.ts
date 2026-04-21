@@ -182,6 +182,20 @@ export interface MantenedorConfig<T = any> {
    * false: foco estándar del browser (cursor al final).
    */
   selectAllOnFocus?: boolean;
+  /**
+   * Operaciones bulk export / import. Solo para mantenedores simples.
+   * Requiere en el backend:
+   *   - createSPRouter({ extraOps: { export: true, resolve: true } })
+   *   - opción 7 en el SP (resolver)
+   *   - template registrado en reporte-svc
+   *   - rutas /api/<entidad>/export y /api/<entidad>/import/preview
+   */
+  bulkOps?: {
+    export?: boolean;
+    import?: boolean;
+    /** Base del endpoint; default deriva de `data.path` (ej: '/api/marcas'). */
+    basePath?: string;
+  };
 }
 
 /**

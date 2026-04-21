@@ -1,8 +1,11 @@
 // ============================================================================
-// MIDDLEWARE — RATE LIMITING PARA RUTAS /api/*
+// PROXY — AUTH GUARD + RATE LIMITING
+// (Next.js 16 renombró middleware → proxy)
 // ============================================================================
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { auth } from '@/lib/auth';
 
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 100;
@@ -25,7 +28,7 @@ function cleanup(now: number) {
   }
 }
 
-export function middleware(req: NextRequest) {
+function applyRateLimit(req: NextRequest): NextResponse {
   const ip = getClientIp(req);
   const now = Date.now();
 
@@ -63,6 +66,13 @@ export function middleware(req: NextRequest) {
   return res;
 }
 
+export default auth((req) => {
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    return applyRateLimit(req);
+  }
+  return NextResponse.next();
+});
+
 export const config = {
-  matcher: ['/api/:path*'],
+  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico).*)'],
 };

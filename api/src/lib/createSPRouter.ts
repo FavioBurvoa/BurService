@@ -22,6 +22,15 @@ interface SPRouterOptions<T> {
    * @default 'id_empresa'
    */
   contextField?: string;
+  /**
+   * Endpoints adicionales para import/export bulk.
+   *   export  → GET  /export   (opción 1 con _export=true; respeta contexto)
+   *   resolve → POST /resolve  (opción 7; recibe { rows: [...] }, sin schema)
+   */
+  extraOps?: {
+    export?: boolean;
+    resolve?: boolean;
+  };
 }
 
 /**
@@ -45,7 +54,7 @@ interface SPRouterOptions<T> {
  *   });
  */
 export function createSPRouter<T>(options: SPRouterOptions<T>): Router {
-  const { spName, schema, global: isGlobal = false, contextField = 'id_empresa' } = options;
+  const { spName, schema, global: isGlobal = false, contextField = 'id_empresa', extraOps } = options;
   const router = Router();
 
   /**
@@ -111,6 +120,35 @@ export function createSPRouter<T>(options: SPRouterOptions<T>): Router {
         next(err);
       }
     };
+
+  // ── Rutas bulk (export/resolve) — deben ir ANTES de /:id para no ser capturadas ──
+  if (extraOps?.export) {
+    const parseExportParams: RequestHandler = (req, res, next) => {
+      if (isGlobal) {
+        req.body = { _export: true };
+        return next();
+      }
+      const contextValue = Number(req.query[contextField]);
+      if (!contextValue || isNaN(contextValue)) {
+        const response: ApiResponse = {
+          success:   false,
+          message:   'Error de validación',
+          data:      null,
+          errors:    [{ field: contextField, detail: `${contextField} requerido como query param (?${contextField}=1)` }],
+          timestamp: new Date().toISOString(),
+        };
+        res.status(400).json(response);
+        return;
+      }
+      req.body = { [contextField]: contextValue, _export: true };
+      next();
+    };
+    router.get('/export', authMiddleware, parseExportParams, makeHandler(1));
+  }
+
+  if (extraOps?.resolve) {
+    router.post('/resolve', authMiddleware, makeHandler(7));
+  }
 
   // ── Rutas estándar ──────────────────────────────────────────────────────────
   router.get('/',    authMiddleware, parseGetParams,   makeHandler(1));

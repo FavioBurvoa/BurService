@@ -15,6 +15,7 @@ import { PresupuestoDocumentoV3Reporte } from '../templates/PresupuestoDocumento
 import { PresupuestosListaReporte }      from '../templates/PresupuestosLista';
 import { SeguimientoClienteReporte }     from '../templates/SeguimientoCliente';
 import { HojaVidaVehiculoReporte }       from '../templates/HojaVidaVehiculo';
+import { MarcasListaReporte }            from '../templates/MarcasLista';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyTemplate = ReporteBase<any> | DocumentoBase<any>;
@@ -26,6 +27,7 @@ const registry = new Map<string, AnyTemplate>([
   ['presupuestos-lista',       new PresupuestosListaReporte()],
   ['seguimiento-cliente',      new SeguimientoClienteReporte()],
   ['hoja-vida-vehiculo',       new HojaVidaVehiculoReporte()],
+  ['marcas-lista',             new MarcasListaReporte()],
 ]);
 
 export function getTemplate(name: string): AnyTemplate | undefined {

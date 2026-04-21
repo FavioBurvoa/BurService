@@ -26,14 +26,20 @@ export async function POST(request: Request) {
 
   const idToken = rawToken?.idToken as string | undefined;
 
-  // ── Limpiar la cookie de sesión de NextAuth ────────────────────────────────
+  // ── Limpiar cookies de sesión de NextAuth ──────────────────────────────────
+  // Auth.js v5 parte la cookie en chunks (.0, .1, ...) cuando el JWT excede
+  // el límite de 4 KB — típico con tokens de Keycloak.
   const cookieStore  = await cookies();
   const isProduction = process.env.NODE_ENV === 'production';
-  const sessionCookie = isProduction
+  const prefix       = isProduction
     ? '__Secure-authjs.session-token'
     : 'authjs.session-token';
 
-  cookieStore.delete(sessionCookie);
+  for (const c of cookieStore.getAll()) {
+    if (c.name === prefix || c.name.startsWith(`${prefix}.`)) {
+      cookieStore.delete(c.name);
+    }
+  }
 
   // ── Construir URL de logout de Keycloak (si aplica) ───────────────────────
   const callbackUrl = `${baseUrl}/login`;

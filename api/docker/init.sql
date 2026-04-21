@@ -41,7 +41,7 @@ CREATE OR REPLACE FUNCTION sp_marcas(
 RETURNS JSON AS $$
 DECLARE
   v_id          BIGINT  := (p_data->>'id')::BIGINT;
-  v_codigo      TEXT    := NULLIF(TRIM(p_data->>'codigo'),      '');
+  v_codigo      TEXT    := UPPER(NULLIF(TRIM(p_data->>'codigo'), ''));
   v_descripcion TEXT    := NULLIF(TRIM(p_data->>'descripcion'), '');
   v_activo      BOOLEAN := (p_data->>'activo')::BOOLEAN;
   v_id_nuevo    BIGINT;
@@ -115,6 +115,71 @@ BEGIN
       'message', 'Marca eliminada correctamente',
       'data',    json_build_object('id', v_id)
     );
+
+  ELSIF p_opcion = 7 THEN
+    -- Resolver: recibe { rows: [...] } con filas crudas del archivo.
+    -- Por cada fila: valida, busca match por codigo (UNIQUE) y retorna
+    -- el modelo completo listo para guardar, con action = insert|update.
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_codigo      TEXT;
+      v_f_descripcion TEXT;
+      v_f_activo      BOOLEAN;
+      v_activo_raw    TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_codigo      := UPPER(NULLIF(TRIM(v_row->>'codigo'), ''));
+        v_f_descripcion := NULLIF(TRIM(v_row->>'descripcion'), '');
+        v_activo_raw    := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo      := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 10 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 10 caracteres');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        ELSIF LENGTH(v_f_descripcion) > 200 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción máx. 200 caracteres');
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM marcas WHERE UPPER(codigo) = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',          v_existing,
+            'codigo',      v_f_codigo,
+            'descripcion', v_f_descripcion,
+            'activo',      v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
 
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;

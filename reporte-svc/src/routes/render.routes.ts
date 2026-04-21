@@ -14,6 +14,7 @@
 
 import { Router, type Request, type Response } from 'express';
 import { ExcelBuilder }     from '../core/ExcelBuilder';
+import { ExcelParser }      from '../core/ExcelParser';
 import { GotenbergClient }  from '../core/GotenbergClient';
 import { DocumentoBase }    from '../core/DocumentoBase';
 import { getTemplate }      from '../core/TemplateRegistry';
@@ -23,7 +24,27 @@ import type { RenderRequest } from '../types';
 export const renderRouter = Router();
 
 const excelBuilder    = new ExcelBuilder();
+const excelParser     = new ExcelParser();
 const gotenbergClient = new GotenbergClient();
+
+// ── POST /parse → xlsx (base64) → JSON ─────────────────────────────────────
+// body: { file: string (base64) }
+// res:  { success, data: { sheets: [{ name, headers, rows }] } }
+renderRouter.post('/parse', async (req: Request, res: Response) => {
+  try {
+    const { file } = req.body as { file?: string };
+    if (!file || typeof file !== 'string') {
+      res.status(400).json({ success: false, message: 'file (base64) es requerido' });
+      return;
+    }
+    const buffer = Buffer.from(file, 'base64');
+    const parsed = await excelParser.parse(buffer);
+    res.json({ success: true, data: parsed });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error interno';
+    res.status(500).json({ success: false, message });
+  }
+});
 
 renderRouter.post('/', async (req: Request, res: Response) => {
   try {

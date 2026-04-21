@@ -112,6 +112,10 @@ const config: MantenedorConfig<Marca> = {
     method: 'DELETE',
   },
   columns,
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================
