@@ -5,4 +5,5 @@ export const empresasRouter = createSPRouter({
   spName: 'sp_empresas',
   schema: EmpresaSchema,
   global: true,
+  extraOps: { export: true, resolve: true },
 });

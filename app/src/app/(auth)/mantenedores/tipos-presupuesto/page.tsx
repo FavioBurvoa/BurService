@@ -344,6 +344,10 @@ const configTipo: MantenedorConfig<TipoPresupuesto> = {
     label:       'Empresa',
     placeholder: 'Seleccione empresa...',
   },
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 function buildConfigDetalle(idEmpresa: string | null): MantenedorConfig<TipoPresupuestoDetalle> {
@@ -372,6 +376,10 @@ function buildConfigDetalle(idEmpresa: string | null): MantenedorConfig<TipoPres
       comboKey: 'tipos_presupuesto',
       label: 'Tipo de Presupuesto',
       placeholder: 'Seleccione tipo de presupuesto...',
+    },
+    bulkOps: {
+      export: true,
+      import: true,
     },
   };
 }

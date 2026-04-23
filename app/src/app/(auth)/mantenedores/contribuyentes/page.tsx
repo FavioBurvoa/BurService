@@ -323,6 +323,10 @@ const config: MantenedorConfig<Contribuyente> = {
       direccion: { required: factura },
     };
   },
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================

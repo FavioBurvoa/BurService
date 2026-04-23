@@ -221,7 +221,7 @@ CREATE OR REPLACE FUNCTION sp_tipos_vehiculo(
 RETURNS JSON AS $$
 DECLARE
   v_id          BIGINT  := (p_data->>'id')::BIGINT;
-  v_codigo      TEXT    := NULLIF(TRIM(p_data->>'codigo'),      '');
+  v_codigo      TEXT    := UPPER(NULLIF(TRIM(p_data->>'codigo'), ''));
   v_descripcion TEXT    := NULLIF(TRIM(p_data->>'descripcion'), '');
   v_activo      BOOLEAN := (p_data->>'activo')::BOOLEAN;
   v_id_nuevo    BIGINT;
@@ -296,6 +296,68 @@ BEGIN
       'data',    json_build_object('id', v_id)
     );
 
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_codigo      TEXT;
+      v_f_descripcion TEXT;
+      v_f_activo      BOOLEAN;
+      v_activo_raw    TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_codigo      := UPPER(NULLIF(TRIM(v_row->>'codigo'), ''));
+        v_f_descripcion := NULLIF(TRIM(v_row->>'descripcion'), '');
+        v_activo_raw    := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo      := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 10 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 10 caracteres');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        ELSIF LENGTH(v_f_descripcion) > 200 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción máx. 200 caracteres');
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM tipos_vehiculo WHERE UPPER(codigo) = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',          v_existing,
+            'codigo',      v_f_codigo,
+            'descripcion', v_f_descripcion,
+            'activo',      v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
+
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
   END IF;
@@ -340,15 +402,29 @@ CREATE OR REPLACE FUNCTION sp_modelos(
 RETURNS JSON AS $$
 DECLARE
   v_id          BIGINT  := (p_data->>'id')::BIGINT;
-  v_codigo      TEXT    := NULLIF(TRIM(p_data->>'codigo'),      '');
+  v_codigo      TEXT    := UPPER(NULLIF(TRIM(p_data->>'codigo'), ''));
   v_descripcion TEXT    := NULLIF(TRIM(p_data->>'descripcion'), '');
   v_id_marca    BIGINT  := NULLIF((p_data->>'id_marca')::BIGINT, 0);
   v_activo      BOOLEAN := (p_data->>'activo')::BOOLEAN;
+  v_export      BOOLEAN := COALESCE((p_data->>'_export')::BOOLEAN, FALSE);
   v_id_nuevo    BIGINT;
   v_result      JSON;
 BEGIN
 
   IF p_opcion = 1 THEN
+    IF v_export THEN
+      SELECT json_build_object(
+        'message', 'Modelos obtenidos correctamente',
+        'data',    COALESCE(json_agg(m ORDER BY m.marca, m.descripcion), '[]'::json)
+      ) INTO v_result
+      FROM (
+        SELECT m.codigo, m.descripcion, ma.descripcion AS marca, m.activo
+        FROM modelos m
+        JOIN marcas ma ON m.id_marca = ma.id
+        WHERE (v_id_marca IS NULL OR m.id_marca = v_id_marca)
+      ) m;
+      RETURN v_result;
+    END IF;
     SELECT json_build_object(
       'message', 'Modelos obtenidos correctamente',
       'data',    COALESCE(json_agg(m ORDER BY m.descripcion), '[]'::json)
@@ -418,6 +494,87 @@ BEGIN
       'data',    json_build_object('id', v_id)
     );
 
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_codigo      TEXT;
+      v_f_descripcion TEXT;
+      v_f_marca_desc  TEXT;
+      v_f_id_marca    BIGINT;
+      v_f_activo      BOOLEAN;
+      v_activo_raw    TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_codigo      := UPPER(NULLIF(TRIM(v_row->>'codigo'), ''));
+        v_f_descripcion := NULLIF(TRIM(v_row->>'descripcion'), '');
+        v_f_marca_desc  := NULLIF(TRIM(v_row->>'marca'), '');
+        v_activo_raw    := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo      := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        v_f_id_marca := NULL;
+        IF v_f_marca_desc IS NOT NULL THEN
+          SELECT id INTO v_f_id_marca FROM marcas
+          WHERE UPPER(descripcion) = UPPER(v_f_marca_desc)
+             OR UPPER(codigo)      = UPPER(v_f_marca_desc)
+          LIMIT 1;
+        END IF;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 10 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 10 caracteres');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        ELSIF LENGTH(v_f_descripcion) > 200 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción máx. 200 caracteres');
+        END IF;
+
+        IF v_f_marca_desc IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'marca', 'detail', 'Marca requerida');
+        ELSIF v_f_id_marca IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'marca', 'detail', format('Marca "%s" no encontrada', v_f_marca_desc));
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_codigo IS NOT NULL AND v_f_id_marca IS NOT NULL THEN
+          SELECT id INTO v_existing FROM modelos
+          WHERE UPPER(codigo) = v_f_codigo AND id_marca = v_f_id_marca;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',          v_existing,
+            'codigo',      v_f_codigo,
+            'descripcion', v_f_descripcion,
+            'id_marca',    v_f_id_marca,
+            'activo',      v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
+
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
   END IF;
@@ -479,18 +636,38 @@ CREATE OR REPLACE FUNCTION sp_vehiculos(
 RETURNS JSON AS $$
 DECLARE
   v_id               BIGINT   := (p_data->>'id')::BIGINT;
-  v_ppu              TEXT     := NULLIF(TRIM(p_data->>'ppu'), '');
+  v_ppu              TEXT     := UPPER(NULLIF(TRIM(p_data->>'ppu'), ''));
   v_id_marca         BIGINT   := NULLIF((p_data->>'id_marca')::BIGINT,   0);
   v_id_modelo        BIGINT   := NULLIF((p_data->>'id_modelo')::BIGINT,  0);
   v_anio             SMALLINT := (p_data->>'anio')::SMALLINT;
   v_color            TEXT     := NULLIF(TRIM(p_data->>'color'), '');
   v_id_tipo_vehiculo BIGINT   := NULLIF((p_data->>'id_tipo_vehiculo')::BIGINT, 0);
   v_activo           BOOLEAN  := (p_data->>'activo')::BOOLEAN;
+  v_export           BOOLEAN  := COALESCE((p_data->>'_export')::BOOLEAN, FALSE);
   v_id_nuevo         BIGINT;
   v_result           JSON;
 BEGIN
 
   IF p_opcion = 1 THEN
+    IF v_export THEN
+      SELECT json_build_object(
+        'message', 'Vehículos obtenidos correctamente',
+        'data',    COALESCE(json_agg(v ORDER BY v.ppu), '[]'::json)
+      ) INTO v_result
+      FROM (
+        SELECT v.ppu,
+               ma.descripcion AS marca,
+               mo.descripcion AS modelo,
+               v.anio, v.color,
+               tv.descripcion AS tipo_vehiculo,
+               v.activo
+        FROM vehiculos v
+        JOIN marcas  ma ON v.id_marca  = ma.id
+        JOIN modelos mo ON v.id_modelo = mo.id
+        LEFT JOIN tipos_vehiculo tv ON v.id_tipo_vehiculo = tv.id
+      ) v;
+      RETURN v_result;
+    END IF;
     SELECT json_build_object(
       'message', 'Vehículos obtenidos correctamente',
       'data',    COALESCE(json_agg(v ORDER BY v.ppu), '[]'::json)
@@ -570,6 +747,128 @@ BEGIN
       'data',    json_build_object('id', v_id)
     );
 
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_ppu            TEXT;
+      v_f_marca_desc     TEXT;
+      v_f_modelo_desc    TEXT;
+      v_f_tipo_veh_desc  TEXT;
+      v_f_id_marca       BIGINT;
+      v_f_id_modelo      BIGINT;
+      v_f_id_tipo_veh    BIGINT;
+      v_f_anio           SMALLINT;
+      v_f_color          TEXT;
+      v_f_activo         BOOLEAN;
+      v_activo_raw       TEXT;
+      v_anio_raw         TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_ppu           := UPPER(NULLIF(TRIM(v_row->>'ppu'), ''));
+        v_f_marca_desc    := NULLIF(TRIM(v_row->>'marca'), '');
+        v_f_modelo_desc   := NULLIF(TRIM(v_row->>'modelo'), '');
+        v_f_tipo_veh_desc := NULLIF(TRIM(v_row->>'tipo_vehiculo'), '');
+        v_f_color         := NULLIF(TRIM(v_row->>'color'), '');
+        v_anio_raw        := NULLIF(TRIM(v_row->>'anio'), '');
+        v_f_anio          := NULL;
+        IF v_anio_raw IS NOT NULL THEN
+          BEGIN
+            v_f_anio := v_anio_raw::SMALLINT;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'anio', 'detail', 'Año inválido');
+          END;
+        END IF;
+        v_activo_raw := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo   := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        v_f_id_marca := NULL;
+        IF v_f_marca_desc IS NOT NULL THEN
+          SELECT id INTO v_f_id_marca FROM marcas
+          WHERE UPPER(descripcion) = UPPER(v_f_marca_desc)
+             OR UPPER(codigo)      = UPPER(v_f_marca_desc)
+          LIMIT 1;
+        END IF;
+
+        v_f_id_modelo := NULL;
+        IF v_f_modelo_desc IS NOT NULL AND v_f_id_marca IS NOT NULL THEN
+          SELECT id INTO v_f_id_modelo FROM modelos
+          WHERE id_marca = v_f_id_marca
+            AND (UPPER(descripcion) = UPPER(v_f_modelo_desc)
+                 OR UPPER(codigo)   = UPPER(v_f_modelo_desc))
+          LIMIT 1;
+        END IF;
+
+        v_f_id_tipo_veh := NULL;
+        IF v_f_tipo_veh_desc IS NOT NULL THEN
+          SELECT id INTO v_f_id_tipo_veh FROM tipos_vehiculo
+          WHERE UPPER(descripcion) = UPPER(v_f_tipo_veh_desc)
+             OR UPPER(codigo)      = UPPER(v_f_tipo_veh_desc)
+          LIMIT 1;
+        END IF;
+
+        IF v_f_ppu IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'ppu', 'detail', 'PPU requerida');
+        ELSIF LENGTH(v_f_ppu) > 10 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'ppu', 'detail', 'PPU máx. 10 caracteres');
+        END IF;
+
+        IF v_f_marca_desc IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'marca', 'detail', 'Marca requerida');
+        ELSIF v_f_id_marca IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'marca', 'detail', format('Marca "%s" no encontrada', v_f_marca_desc));
+        END IF;
+
+        IF v_f_modelo_desc IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'modelo', 'detail', 'Modelo requerido');
+        ELSIF v_f_id_marca IS NOT NULL AND v_f_id_modelo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'modelo', 'detail', format('Modelo "%s" no encontrado para la marca indicada', v_f_modelo_desc));
+        END IF;
+
+        IF v_f_tipo_veh_desc IS NOT NULL AND v_f_id_tipo_veh IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'tipo_vehiculo', 'detail', format('Tipo vehículo "%s" no encontrado', v_f_tipo_veh_desc));
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_ppu IS NOT NULL THEN
+          SELECT id INTO v_existing FROM vehiculos WHERE UPPER(ppu) = v_f_ppu;
+        END IF;
+
+        -- ppu NUNCA se actualiza: en update no se envía
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',               v_existing,
+            'ppu',              CASE WHEN v_existing IS NULL THEN v_f_ppu ELSE NULL END,
+            'id_marca',         v_f_id_marca,
+            'id_modelo',        v_f_id_modelo,
+            'anio',             v_f_anio,
+            'color',            v_f_color,
+            'id_tipo_vehiculo', v_f_id_tipo_veh,
+            'activo',           v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
+
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
   END IF;
@@ -628,7 +927,7 @@ CREATE OR REPLACE FUNCTION sp_regiones(
 RETURNS JSON AS $$
 DECLARE
   v_id          BIGINT   := (p_data->>'id')::BIGINT;
-  v_codigo      TEXT     := NULLIF(TRIM(p_data->>'codigo'),      '');
+  v_codigo      TEXT     := UPPER(NULLIF(TRIM(p_data->>'codigo'), ''));
   v_descripcion TEXT     := NULLIF(TRIM(p_data->>'descripcion'), '');
   v_orden       SMALLINT := (p_data->>'orden')::SMALLINT;
   v_codigo_sii  TEXT     := NULLIF(TRIM(p_data->>'codigo_sii'),  '');
@@ -707,6 +1006,80 @@ BEGIN
       'data',    json_build_object('id', v_id)
     );
 
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_codigo      TEXT;
+      v_f_descripcion TEXT;
+      v_f_orden       SMALLINT;
+      v_f_codigo_sii  TEXT;
+      v_f_activo      BOOLEAN;
+      v_activo_raw    TEXT;
+      v_orden_raw     TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_codigo      := UPPER(NULLIF(TRIM(v_row->>'codigo'), ''));
+        v_f_descripcion := NULLIF(TRIM(v_row->>'descripcion'), '');
+        v_f_codigo_sii  := NULLIF(TRIM(v_row->>'codigo_sii'),  '');
+        v_orden_raw     := NULLIF(TRIM(v_row->>'orden'), '');
+        BEGIN
+          v_f_orden := v_orden_raw::SMALLINT;
+        EXCEPTION WHEN others THEN
+          v_f_orden := 0;
+        END;
+        v_activo_raw    := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo      := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 10 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 10 caracteres');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        ELSIF LENGTH(v_f_descripcion) > 200 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción máx. 200 caracteres');
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM regiones WHERE UPPER(codigo) = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',          v_existing,
+            'codigo',      v_f_codigo,
+            'descripcion', v_f_descripcion,
+            'orden',       v_f_orden,
+            'codigo_sii',  v_f_codigo_sii,
+            'activo',      v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
+
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
   END IF;
@@ -759,7 +1132,7 @@ CREATE OR REPLACE FUNCTION sp_tipos_contribuyente(
 RETURNS JSON AS $$
 DECLARE
   v_id          BIGINT  := (p_data->>'id')::BIGINT;
-  v_codigo      TEXT    := NULLIF(TRIM(p_data->>'codigo'),      '');
+  v_codigo      TEXT    := UPPER(NULLIF(TRIM(p_data->>'codigo'), ''));
   v_descripcion TEXT    := NULLIF(TRIM(p_data->>'descripcion'), '');
   v_sw_factura  BOOLEAN := (p_data->>'sw_factura')::BOOLEAN;
   v_activo      BOOLEAN := (p_data->>'activo')::BOOLEAN;
@@ -835,6 +1208,77 @@ BEGIN
       'message', 'Tipo de contribuyente eliminado correctamente',
       'data',    json_build_object('id', v_id)
     );
+
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_codigo      TEXT;
+      v_f_descripcion TEXT;
+      v_f_sw_factura  BOOLEAN;
+      v_f_activo      BOOLEAN;
+      v_factura_raw   TEXT;
+      v_activo_raw    TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_codigo      := UPPER(NULLIF(TRIM(v_row->>'codigo'), ''));
+        v_f_descripcion := NULLIF(TRIM(v_row->>'descripcion'), '');
+        v_factura_raw   := UPPER(TRIM(COALESCE(v_row->>'sw_factura', '')));
+        v_f_sw_factura  := CASE
+          WHEN v_factura_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_factura_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE FALSE
+        END;
+        v_activo_raw    := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo      := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 10 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 10 caracteres');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        ELSIF LENGTH(v_f_descripcion) > 200 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción máx. 200 caracteres');
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM tipos_contribuyente WHERE UPPER(codigo) = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',          v_existing,
+            'codigo',      v_f_codigo,
+            'descripcion', v_f_descripcion,
+            'sw_factura',  v_f_sw_factura,
+            'activo',      v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
 
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
@@ -964,6 +1408,99 @@ BEGIN
       'data',    json_build_object('id', v_id)
     );
 
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_codigo         INTEGER;
+      v_f_descripcion    TEXT;
+      v_f_sw_afecto      BOOLEAN;
+      v_f_sw_exento      BOOLEAN;
+      v_f_sw_electronico BOOLEAN;
+      v_f_activo         BOOLEAN;
+      v_codigo_raw       TEXT;
+      v_afecto_raw       TEXT;
+      v_exento_raw       TEXT;
+      v_electronico_raw  TEXT;
+      v_activo_raw       TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_codigo_raw      := NULLIF(TRIM(v_row->>'codigo'), '');
+        BEGIN
+          v_f_codigo := v_codigo_raw::INTEGER;
+        EXCEPTION WHEN others THEN
+          v_f_codigo := NULL;
+        END;
+        v_f_descripcion   := NULLIF(TRIM(v_row->>'descripcion'), '');
+        v_afecto_raw      := UPPER(TRIM(COALESCE(v_row->>'sw_afecto', '')));
+        v_f_sw_afecto     := CASE
+          WHEN v_afecto_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_afecto_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE FALSE
+        END;
+        v_exento_raw      := UPPER(TRIM(COALESCE(v_row->>'sw_exento', '')));
+        v_f_sw_exento     := CASE
+          WHEN v_exento_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_exento_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE FALSE
+        END;
+        v_electronico_raw := UPPER(TRIM(COALESCE(v_row->>'sw_electronico', '')));
+        v_f_sw_electronico := CASE
+          WHEN v_electronico_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_electronico_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+        v_activo_raw      := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo        := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido (numérico)');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        ELSIF LENGTH(v_f_descripcion) > 200 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción máx. 200 caracteres');
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM tipos_dte WHERE codigo = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',             v_existing,
+            'codigo',         v_f_codigo,
+            'descripcion',    v_f_descripcion,
+            'sw_afecto',      v_f_sw_afecto,
+            'sw_exento',      v_f_sw_exento,
+            'sw_electronico', v_f_sw_electronico,
+            'activo',         v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
+
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
   END IF;
@@ -1012,16 +1549,31 @@ RETURNS JSON AS $$
 DECLARE
   v_id          BIGINT   := (p_data->>'id')::BIGINT;
   v_id_region   BIGINT   := NULLIF((p_data->>'id_region')::BIGINT, 0);
-  v_codigo      TEXT     := NULLIF(TRIM(p_data->>'codigo'),      '');
+  v_codigo      TEXT     := UPPER(NULLIF(TRIM(p_data->>'codigo'), ''));
   v_descripcion TEXT     := NULLIF(TRIM(p_data->>'descripcion'), '');
   v_orden       SMALLINT := (p_data->>'orden')::SMALLINT;
   v_codigo_sii  TEXT     := NULLIF(TRIM(p_data->>'codigo_sii'),  '');
   v_activo      BOOLEAN  := (p_data->>'activo')::BOOLEAN;
+  v_export      BOOLEAN  := COALESCE((p_data->>'_export')::BOOLEAN, FALSE);
   v_id_nuevo    BIGINT;
   v_result      JSON;
 BEGIN
 
   IF p_opcion = 1 THEN
+    IF v_export THEN
+      SELECT json_build_object(
+        'message', 'Comunas obtenidas correctamente',
+        'data',    COALESCE(json_agg(c ORDER BY c.region, c.descripcion), '[]'::json)
+      ) INTO v_result
+      FROM (
+        SELECT c.codigo, c.descripcion, r.descripcion AS region,
+               c.orden, c.codigo_sii, c.activo
+        FROM comunas c
+        JOIN regiones r ON c.id_region = r.id
+        WHERE (v_id_region IS NULL OR c.id_region = v_id_region)
+      ) c;
+      RETURN v_result;
+    END IF;
     SELECT json_build_object(
       'message', 'Comunas obtenidas correctamente',
       'data',    COALESCE(json_agg(c ORDER BY c.descripcion), '[]'::json)
@@ -1098,6 +1650,101 @@ BEGIN
       'data',    json_build_object('id', v_id)
     );
 
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_codigo      TEXT;
+      v_f_descripcion TEXT;
+      v_f_region_desc TEXT;
+      v_f_id_region   BIGINT;
+      v_f_orden       SMALLINT;
+      v_f_codigo_sii  TEXT;
+      v_f_activo      BOOLEAN;
+      v_activo_raw    TEXT;
+      v_orden_raw     TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_codigo      := UPPER(NULLIF(TRIM(v_row->>'codigo'), ''));
+        v_f_descripcion := NULLIF(TRIM(v_row->>'descripcion'), '');
+        v_f_region_desc := NULLIF(TRIM(v_row->>'region'), '');
+        v_f_codigo_sii  := NULLIF(TRIM(v_row->>'codigo_sii'), '');
+        v_orden_raw     := NULLIF(TRIM(v_row->>'orden'), '');
+        v_f_orden       := NULL;
+        IF v_orden_raw IS NOT NULL THEN
+          BEGIN
+            v_f_orden := v_orden_raw::SMALLINT;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'orden', 'detail', 'Orden inválido');
+          END;
+        END IF;
+        v_activo_raw    := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo      := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        v_f_id_region := NULL;
+        IF v_f_region_desc IS NOT NULL THEN
+          SELECT id INTO v_f_id_region FROM regiones
+          WHERE UPPER(descripcion) = UPPER(v_f_region_desc)
+             OR UPPER(codigo)      = UPPER(v_f_region_desc)
+          LIMIT 1;
+        END IF;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 10 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 10 caracteres');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        ELSIF LENGTH(v_f_descripcion) > 200 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción máx. 200 caracteres');
+        END IF;
+
+        IF v_f_region_desc IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'region', 'detail', 'Región requerida');
+        ELSIF v_f_id_region IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'region', 'detail', format('Región "%s" no encontrada', v_f_region_desc));
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM comunas WHERE UPPER(codigo) = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',          v_existing,
+            'codigo',      v_f_codigo,
+            'descripcion', v_f_descripcion,
+            'id_region',   v_f_id_region,
+            'orden',       v_f_orden,
+            'codigo_sii',  v_f_codigo_sii,
+            'activo',      v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
+
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
   END IF;
@@ -1164,7 +1811,7 @@ CREATE OR REPLACE FUNCTION sp_contribuyentes(
 RETURNS JSON AS $$
 DECLARE
   v_id        BIGINT  := (p_data->>'id')::BIGINT;
-  v_rut       TEXT    := NULLIF(TRIM(p_data->>'rut'),       '');
+  v_rut       TEXT    := UPPER(REPLACE(NULLIF(TRIM(p_data->>'rut'), ''), '.', ''));
   v_nombre    TEXT    := NULLIF(TRIM(p_data->>'nombre'),    '');
   v_apellidos TEXT    := NULLIF(TRIM(p_data->>'apellidos'), '');
   v_giro      TEXT    := NULLIF(TRIM(p_data->>'giro'),      '');
@@ -1175,11 +1822,34 @@ DECLARE
   v_telefono2 TEXT    := NULLIF(TRIM(p_data->>'telefono2'), '');
   v_activo    BOOLEAN := (p_data->>'activo')::BOOLEAN;
   v_tipos     JSONB   := COALESCE(p_data->'id_tipo_contribuyente', '[]'::jsonb);
+  v_export    BOOLEAN := COALESCE((p_data->>'_export')::BOOLEAN, FALSE);
   v_id_nuevo  BIGINT;
   v_result    JSON;
 BEGIN
 
   IF p_opcion = 1 THEN
+    IF v_export THEN
+      SELECT json_build_object(
+        'message', 'Contribuyentes obtenidos correctamente',
+        'data',    COALESCE(json_agg(c ORDER BY c.nombre), '[]'::json)
+      ) INTO v_result
+      FROM (
+        SELECT c.rut, c.nombre, c.apellidos, c.giro,
+               com.descripcion AS comuna,
+               c.direccion, c.email, c.telefono, c.telefono2,
+               COALESCE(
+                 (SELECT string_agg(tc.descripcion, '|' ORDER BY tc.descripcion)
+                  FROM contribuyente_tipos ct
+                  JOIN tipos_contribuyente tc ON ct.id_tipo_contribuyente = tc.id
+                  WHERE ct.id_contribuyente = c.id),
+                 ''
+               ) AS tipos_contribuyente,
+               c.activo
+        FROM contribuyentes c
+        LEFT JOIN comunas com ON c.id_comuna = com.id
+      ) c;
+      RETURN v_result;
+    END IF;
     SELECT json_build_object(
       'message', 'Contribuyentes obtenidos correctamente',
       'data',    COALESCE(json_agg(c ORDER BY c.nombre), '[]'::json)
@@ -1307,6 +1977,135 @@ BEGIN
       'data',    json_build_object('id', v_id)
     );
 
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_rut         TEXT;
+      v_f_nombre      TEXT;
+      v_f_apellidos   TEXT;
+      v_f_giro        TEXT;
+      v_f_direccion   TEXT;
+      v_f_email       TEXT;
+      v_f_telefono    TEXT;
+      v_f_telefono2   TEXT;
+      v_f_comuna_desc TEXT;
+      v_f_id_comuna   BIGINT;
+      v_f_tipos_raw   TEXT;
+      v_f_tipos_ids   JSONB;
+      v_f_tipos_miss  JSONB;
+      v_tipo_desc     TEXT;
+      v_tipo_id       BIGINT;
+      v_f_activo      BOOLEAN;
+      v_activo_raw    TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_rut         := UPPER(REPLACE(NULLIF(TRIM(v_row->>'rut'), ''), '.', ''));
+        v_f_nombre      := NULLIF(TRIM(v_row->>'nombre'),    '');
+        v_f_apellidos   := NULLIF(TRIM(v_row->>'apellidos'), '');
+        v_f_giro        := NULLIF(TRIM(v_row->>'giro'),      '');
+        v_f_direccion   := NULLIF(TRIM(v_row->>'direccion'), '');
+        v_f_email       := NULLIF(TRIM(v_row->>'email'),     '');
+        v_f_telefono    := NULLIF(TRIM(v_row->>'telefono'),  '');
+        v_f_telefono2   := NULLIF(TRIM(v_row->>'telefono2'), '');
+        v_f_comuna_desc := NULLIF(TRIM(v_row->>'comuna'),    '');
+        v_f_tipos_raw   := NULLIF(TRIM(v_row->>'tipos_contribuyente'), '');
+        v_activo_raw    := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo      := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        v_f_id_comuna := NULL;
+        IF v_f_comuna_desc IS NOT NULL THEN
+          SELECT id INTO v_f_id_comuna FROM comunas
+          WHERE UPPER(descripcion) = UPPER(v_f_comuna_desc)
+             OR UPPER(codigo)      = UPPER(v_f_comuna_desc)
+          LIMIT 1;
+        END IF;
+
+        v_f_tipos_ids  := '[]'::JSONB;
+        v_f_tipos_miss := '[]'::JSONB;
+        IF v_f_tipos_raw IS NOT NULL THEN
+          FOR v_tipo_desc IN
+            SELECT TRIM(token)
+            FROM unnest(string_to_array(v_f_tipos_raw, '|')) AS token
+            WHERE TRIM(token) <> ''
+          LOOP
+            v_tipo_id := NULL;
+            SELECT id INTO v_tipo_id FROM tipos_contribuyente
+            WHERE UPPER(descripcion) = UPPER(v_tipo_desc)
+               OR UPPER(codigo)      = UPPER(v_tipo_desc)
+            LIMIT 1;
+            IF v_tipo_id IS NOT NULL THEN
+              v_f_tipos_ids := v_f_tipos_ids || to_jsonb(v_tipo_id);
+            ELSE
+              v_f_tipos_miss := v_f_tipos_miss || to_jsonb(v_tipo_desc);
+            END IF;
+          END LOOP;
+        END IF;
+
+        IF v_f_rut IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'rut', 'detail', 'RUT requerido');
+        ELSIF LENGTH(v_f_rut) > 20 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'rut', 'detail', 'RUT máx. 20 caracteres');
+        END IF;
+
+        IF v_f_nombre IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'nombre', 'detail', 'Nombre requerido');
+        END IF;
+
+        IF v_f_comuna_desc IS NOT NULL AND v_f_id_comuna IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'comuna', 'detail', format('Comuna "%s" no encontrada', v_f_comuna_desc));
+        END IF;
+
+        IF jsonb_array_length(v_f_tipos_miss) > 0 THEN
+          v_errors := v_errors || jsonb_build_object(
+            'field',  'tipos_contribuyente',
+            'detail', format('Tipos no encontrados: %s', (SELECT string_agg(value#>>'{}', ', ') FROM jsonb_array_elements(v_f_tipos_miss)))
+          );
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_rut IS NOT NULL THEN
+          SELECT id INTO v_existing FROM contribuyentes WHERE UPPER(rut) = v_f_rut;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',                    v_existing,
+            'rut',                   v_f_rut,
+            'nombre',                v_f_nombre,
+            'apellidos',             COALESCE(v_f_apellidos, ''),
+            'giro',                  v_f_giro,
+            'id_comuna',             v_f_id_comuna,
+            'direccion',             v_f_direccion,
+            'email',                 v_f_email,
+            'telefono',              v_f_telefono,
+            'telefono2',             v_f_telefono2,
+            'id_tipo_contribuyente', v_f_tipos_ids,
+            'activo',                v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
+
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
   END IF;
@@ -1357,8 +2156,8 @@ CREATE OR REPLACE FUNCTION sp_empresas(
 RETURNS JSON AS $$
 DECLARE
   v_id                BIGINT   := (p_data->>'id')::BIGINT;
-  v_codigo            TEXT     := NULLIF(TRIM(p_data->>'codigo'),          '');
-  v_rut               TEXT     := NULLIF(TRIM(p_data->>'rut'),             '');
+  v_codigo            TEXT     := UPPER(NULLIF(TRIM(p_data->>'codigo'), ''));
+  v_rut               TEXT     := UPPER(REPLACE(NULLIF(TRIM(p_data->>'rut'), ''), '.', ''));
   v_razon_social      TEXT     := NULLIF(TRIM(p_data->>'razon_social'),    '');
   v_nombre_fantasia   TEXT     := NULLIF(TRIM(p_data->>'nombre_fantasia'), '');
   v_giro              TEXT     := NULLIF(TRIM(p_data->>'giro'),            '');
@@ -1373,11 +2172,30 @@ DECLARE
   v_fecha_resolucion_sii  DATE    := NULLIF(p_data->>'fecha_resolucion_sii', '')::DATE;
   v_ambiente          SMALLINT := (p_data->>'ambiente')::SMALLINT;
   v_activo            BOOLEAN  := (p_data->>'activo')::BOOLEAN;
+  v_export            BOOLEAN  := COALESCE((p_data->>'_export')::BOOLEAN, FALSE);
   v_id_nuevo          BIGINT;
   v_result            JSON;
 BEGIN
 
   IF p_opcion = 1 THEN
+    IF v_export THEN
+      SELECT json_build_object(
+        'message', 'Empresas obtenidas correctamente',
+        'data',    COALESCE(json_agg(e ORDER BY e.razon_social), '[]'::json)
+      ) INTO v_result
+      FROM (
+        SELECT e.codigo, e.rut, e.razon_social, e.nombre_fantasia,
+               e.giro, e.act_eco,
+               com.descripcion AS comuna,
+               e.direccion, e.direccion_referencia, e.email, e.telefono,
+               e.numero_resolucion_sii,
+               TO_CHAR(e.fecha_resolucion_sii, 'YYYY-MM-DD') AS fecha_resolucion_sii,
+               e.porcentaje_iva, e.ambiente, e.activo
+        FROM empresas e
+        LEFT JOIN comunas com ON e.id_comuna = com.id
+      ) e;
+      RETURN v_result;
+    END IF;
     SELECT json_build_object(
       'message', 'Empresas obtenidas correctamente',
       'data',    COALESCE(json_agg(e ORDER BY e.razon_social), '[]'::json)
@@ -1489,6 +2307,169 @@ BEGIN
       'message', 'Empresa eliminada correctamente',
       'data',    json_build_object('id', v_id)
     );
+
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row      JSONB;
+      v_idx      INTEGER := 0;
+      v_out      JSONB   := '[]'::JSONB;
+      v_errors   JSONB;
+      v_existing BIGINT;
+      v_f_codigo         TEXT;
+      v_f_rut            TEXT;
+      v_f_razon_social   TEXT;
+      v_f_nombre_fantasia TEXT;
+      v_f_giro           TEXT;
+      v_f_act_eco        TEXT;
+      v_f_comuna_desc    TEXT;
+      v_f_id_comuna      BIGINT;
+      v_f_direccion      TEXT;
+      v_f_dir_referencia TEXT;
+      v_f_email          TEXT;
+      v_f_telefono       TEXT;
+      v_f_num_resolucion INTEGER;
+      v_f_fecha_resol    DATE;
+      v_f_porcentaje_iva NUMERIC;
+      v_f_ambiente       SMALLINT;
+      v_f_activo         BOOLEAN;
+      v_num_raw          TEXT;
+      v_fecha_raw        TEXT;
+      v_iva_raw          TEXT;
+      v_amb_raw          TEXT;
+      v_activo_raw       TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_codigo          := UPPER(NULLIF(TRIM(v_row->>'codigo'), ''));
+        v_f_rut             := UPPER(REPLACE(NULLIF(TRIM(v_row->>'rut'), ''), '.', ''));
+        v_f_razon_social    := NULLIF(TRIM(v_row->>'razon_social'),    '');
+        v_f_nombre_fantasia := NULLIF(TRIM(v_row->>'nombre_fantasia'), '');
+        v_f_giro            := NULLIF(TRIM(v_row->>'giro'),            '');
+        v_f_act_eco         := NULLIF(TRIM(v_row->>'act_eco'),         '');
+        v_f_comuna_desc     := NULLIF(TRIM(v_row->>'comuna'),          '');
+        v_f_direccion       := NULLIF(TRIM(v_row->>'direccion'),            '');
+        v_f_dir_referencia  := NULLIF(TRIM(v_row->>'direccion_referencia'), '');
+        v_f_email           := NULLIF(TRIM(v_row->>'email'),                '');
+        v_f_telefono        := NULLIF(TRIM(v_row->>'telefono'),        '');
+
+        v_num_raw   := NULLIF(TRIM(v_row->>'numero_resolucion_sii'), '');
+        v_f_num_resolucion := NULL;
+        IF v_num_raw IS NOT NULL THEN
+          BEGIN
+            v_f_num_resolucion := v_num_raw::INTEGER;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'numero_resolucion_sii', 'detail', 'Número de resolución inválido');
+          END;
+        END IF;
+
+        v_fecha_raw := NULLIF(TRIM(v_row->>'fecha_resolucion_sii'), '');
+        v_f_fecha_resol := NULL;
+        IF v_fecha_raw IS NOT NULL THEN
+          BEGIN
+            v_f_fecha_resol := v_fecha_raw::DATE;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'fecha_resolucion_sii', 'detail', 'Fecha inválida (usar YYYY-MM-DD)');
+          END;
+        END IF;
+
+        v_iva_raw   := NULLIF(TRIM(v_row->>'porcentaje_iva'), '');
+        v_f_porcentaje_iva := NULL;
+        IF v_iva_raw IS NOT NULL THEN
+          BEGIN
+            v_f_porcentaje_iva := REPLACE(v_iva_raw, ',', '.')::NUMERIC;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'porcentaje_iva', 'detail', 'Porcentaje IVA inválido');
+          END;
+        END IF;
+
+        v_amb_raw   := NULLIF(TRIM(v_row->>'ambiente'), '');
+        v_f_ambiente := NULL;
+        IF v_amb_raw IS NOT NULL THEN
+          BEGIN
+            v_f_ambiente := v_amb_raw::SMALLINT;
+            IF v_f_ambiente NOT IN (1, 2) THEN
+              v_errors := v_errors || jsonb_build_object('field', 'ambiente', 'detail', 'Ambiente debe ser 1 (certificación) o 2 (producción)');
+              v_f_ambiente := NULL;
+            END IF;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'ambiente', 'detail', 'Ambiente inválido');
+          END;
+        END IF;
+
+        v_activo_raw := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo   := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        v_f_id_comuna := NULL;
+        IF v_f_comuna_desc IS NOT NULL THEN
+          SELECT id INTO v_f_id_comuna FROM comunas
+          WHERE UPPER(descripcion) = UPPER(v_f_comuna_desc)
+             OR UPPER(codigo)      = UPPER(v_f_comuna_desc)
+          LIMIT 1;
+        END IF;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 20 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 20 caracteres');
+        END IF;
+
+        IF v_f_rut IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'rut', 'detail', 'RUT requerido');
+        ELSIF LENGTH(v_f_rut) > 20 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'rut', 'detail', 'RUT máx. 20 caracteres');
+        END IF;
+
+        IF v_f_razon_social IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'razon_social', 'detail', 'Razón social requerida');
+        END IF;
+
+        IF v_f_comuna_desc IS NOT NULL AND v_f_id_comuna IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'comuna', 'detail', format('Comuna "%s" no encontrada', v_f_comuna_desc));
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM empresas WHERE UPPER(codigo) = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',                    v_existing,
+            'codigo',                v_f_codigo,
+            'rut',                   v_f_rut,
+            'razon_social',          v_f_razon_social,
+            'nombre_fantasia',       v_f_nombre_fantasia,
+            'giro',                  v_f_giro,
+            'act_eco',               v_f_act_eco,
+            'id_comuna',             v_f_id_comuna,
+            'direccion',             v_f_direccion,
+            'direccion_referencia',  v_f_dir_referencia,
+            'email',                 v_f_email,
+            'telefono',              v_f_telefono,
+            'numero_resolucion_sii', v_f_num_resolucion,
+            'fecha_resolucion_sii',  TO_CHAR(v_f_fecha_resol, 'YYYY-MM-DD'),
+            'porcentaje_iva',        v_f_porcentaje_iva,
+            'ambiente',              v_f_ambiente,
+            'activo',                v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
 
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
@@ -1825,7 +2806,7 @@ RETURNS JSON AS $$
 DECLARE
   v_id               BIGINT   := (p_data->>'id')::BIGINT;
   v_id_empresa       BIGINT   := NULLIF((p_data->>'id_empresa')::BIGINT, 0);
-  v_codigo           TEXT     := NULLIF(TRIM(p_data->>'codigo'),           '');
+  v_codigo           TEXT     := UPPER(NULLIF(TRIM(p_data->>'codigo'), ''));
   v_descripcion      TEXT     := NULLIF(TRIM(p_data->>'descripcion'),      '');
   v_id_tipo_dte      BIGINT   := NULLIF((p_data->>'id_tipo_dte')::BIGINT,  0);
   v_enc_linea1       TEXT     := NULLIF(TRIM(p_data->>'encabezado_linea1'), '');
@@ -1834,11 +2815,28 @@ DECLARE
   v_logo_alto        SMALLINT := NULLIF((p_data->>'logo_alto')::SMALLINT,   0);
   v_dias_validez     SMALLINT := NULLIF((p_data->>'dias_validez')::SMALLINT, 0);
   v_activo           BOOLEAN  := (p_data->>'activo')::BOOLEAN;
+  v_export           BOOLEAN  := COALESCE((p_data->>'_export')::BOOLEAN, FALSE);
   v_id_nuevo         BIGINT;
   v_result      JSON;
 BEGIN
 
   IF p_opcion = 1 THEN
+    IF v_export THEN
+      SELECT json_build_object(
+        'message', 'Tipos de presupuesto obtenidos correctamente',
+        'data',    COALESCE(json_agg(t ORDER BY t.descripcion), '[]'::json)
+      ) INTO v_result
+      FROM (
+        SELECT t.codigo, t.descripcion,
+               td.codigo AS tipo_dte,
+               t.encabezado_linea1, t.encabezado_linea2,
+               t.logo_ancho, t.logo_alto, t.dias_validez, t.activo
+        FROM tipos_presupuesto t
+        LEFT JOIN tipos_dte td ON t.id_tipo_dte = td.id
+        WHERE t.id_empresa = v_id_empresa
+      ) t;
+      RETURN v_result;
+    END IF;
     SELECT json_build_object(
       'message', 'Tipos de presupuesto obtenidos correctamente',
       'data',    COALESCE(json_agg(t ORDER BY t.descripcion), '[]'::json)
@@ -1925,6 +2923,132 @@ BEGIN
       'message', 'Tipo de presupuesto eliminado correctamente',
       'data',    json_build_object('id', v_id)
     );
+
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row          JSONB;
+      v_idx          INTEGER := 0;
+      v_out          JSONB   := '[]'::JSONB;
+      v_errors       JSONB;
+      v_existing     BIGINT;
+      v_f_id_empresa BIGINT;
+      v_f_codigo     TEXT;
+      v_f_descripcion TEXT;
+      v_f_tipo_dte_desc TEXT;
+      v_f_id_tipo_dte BIGINT;
+      v_f_enc1       TEXT;
+      v_f_enc2       TEXT;
+      v_f_logo_ancho SMALLINT;
+      v_f_logo_alto  SMALLINT;
+      v_f_dias       SMALLINT;
+      v_f_activo     BOOLEAN;
+      v_ancho_raw    TEXT;
+      v_alto_raw     TEXT;
+      v_dias_raw     TEXT;
+      v_activo_raw   TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_id_empresa    := NULLIF((v_row->>'id_empresa')::BIGINT, 0);
+        v_f_codigo        := UPPER(NULLIF(TRIM(v_row->>'codigo'), ''));
+        v_f_descripcion   := NULLIF(TRIM(v_row->>'descripcion'),       '');
+        v_f_tipo_dte_desc := NULLIF(TRIM(v_row->>'tipo_dte'),          '');
+        v_f_enc1          := NULLIF(TRIM(v_row->>'encabezado_linea1'), '');
+        v_f_enc2          := NULLIF(TRIM(v_row->>'encabezado_linea2'), '');
+
+        v_ancho_raw := NULLIF(TRIM(v_row->>'logo_ancho'), '');
+        v_f_logo_ancho := NULL;
+        IF v_ancho_raw IS NOT NULL THEN
+          BEGIN
+            v_f_logo_ancho := v_ancho_raw::SMALLINT;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'logo_ancho', 'detail', 'Logo ancho inválido');
+          END;
+        END IF;
+
+        v_alto_raw := NULLIF(TRIM(v_row->>'logo_alto'), '');
+        v_f_logo_alto := NULL;
+        IF v_alto_raw IS NOT NULL THEN
+          BEGIN
+            v_f_logo_alto := v_alto_raw::SMALLINT;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'logo_alto', 'detail', 'Logo alto inválido');
+          END;
+        END IF;
+
+        v_dias_raw := NULLIF(TRIM(v_row->>'dias_validez'), '');
+        v_f_dias := NULL;
+        IF v_dias_raw IS NOT NULL THEN
+          BEGIN
+            v_f_dias := v_dias_raw::SMALLINT;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'dias_validez', 'detail', 'Días de validez inválido');
+          END;
+        END IF;
+
+        v_activo_raw := UPPER(TRIM(COALESCE(v_row->>'activo', '')));
+        v_f_activo   := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        v_f_id_tipo_dte := NULL;
+        IF v_f_tipo_dte_desc IS NOT NULL THEN
+          SELECT id INTO v_f_id_tipo_dte FROM tipos_dte
+          WHERE UPPER(codigo)      = UPPER(v_f_tipo_dte_desc)
+             OR UPPER(descripcion) = UPPER(v_f_tipo_dte_desc)
+          LIMIT 1;
+        END IF;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 20 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 20 caracteres');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        END IF;
+
+        IF v_f_tipo_dte_desc IS NOT NULL AND v_f_id_tipo_dte IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'tipo_dte', 'detail', format('Tipo DTE "%s" no encontrado', v_f_tipo_dte_desc));
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_id_empresa IS NOT NULL AND v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM tipos_presupuesto
+          WHERE id_empresa = v_f_id_empresa AND UPPER(codigo) = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',                v_existing,
+            'id_empresa',        v_f_id_empresa,
+            'codigo',            v_f_codigo,
+            'descripcion',       v_f_descripcion,
+            'id_tipo_dte',       v_f_id_tipo_dte,
+            'encabezado_linea1', v_f_enc1,
+            'encabezado_linea2', v_f_enc2,
+            'logo_ancho',        v_f_logo_ancho,
+            'logo_alto',         v_f_logo_alto,
+            'dias_validez',      v_f_dias,
+            'activo',            v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
 
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
@@ -2091,23 +3215,38 @@ RETURNS JSON AS $$
 DECLARE
   v_id                  BIGINT   := (p_data->>'id')::BIGINT;
   v_id_tipo_presupuesto BIGINT   := NULLIF((p_data->>'id_tipo_presupuesto')::BIGINT, 0);
-  v_codigo              TEXT     := NULLIF(TRIM(p_data->>'codigo'),          '');
+  v_codigo              TEXT     := UPPER(NULLIF(TRIM(p_data->>'codigo'),          ''));
   v_descripcion         TEXT     := NULLIF(TRIM(p_data->>'descripcion'),     '');
   v_orden               SMALLINT := (p_data->>'orden')::SMALLINT;
   v_cant_max_det        SMALLINT := (p_data->>'cant_max_det')::SMALLINT;
   v_col_doc             SMALLINT := (p_data->>'col_doc')::SMALLINT;
-  v_codigo_subtotal     TEXT     := NULLIF(TRIM(p_data->>'codigo_subtotal'), '');
+  v_codigo_subtotal     TEXT     := UPPER(NULLIF(TRIM(p_data->>'codigo_subtotal'), ''));
   v_nombre_subtotal     TEXT     := NULLIF(TRIM(p_data->>'nombre_subtotal'), '');
   v_ver_sw_exento       BOOLEAN  := (p_data->>'ver_sw_exento')::BOOLEAN;
   v_ver_cantidad        BOOLEAN  := (p_data->>'ver_cantidad')::BOOLEAN;
   v_ver_valor           BOOLEAN  := (p_data->>'ver_valor')::BOOLEAN;
   v_ver_total           BOOLEAN  := (p_data->>'ver_total')::BOOLEAN;
   v_activo              BOOLEAN  := (p_data->>'activo')::BOOLEAN;
+  v_export              BOOLEAN  := COALESCE((p_data->>'_export')::BOOLEAN, FALSE);
   v_id_nuevo            BIGINT;
   v_result              JSON;
 BEGIN
 
   IF p_opcion = 1 THEN
+    IF v_export THEN
+      SELECT json_build_object(
+        'message', 'Detalles de tipo presupuesto obtenidos correctamente',
+        'data',    COALESCE(json_agg(d ORDER BY d.orden), '[]'::json)
+      ) INTO v_result
+      FROM (
+        SELECT codigo, descripcion, orden, cant_max_det, col_doc,
+               codigo_subtotal, nombre_subtotal,
+               ver_sw_exento, ver_cantidad, ver_valor, ver_total, activo
+        FROM tipos_presupuesto_detalles
+        WHERE id_tipo_presupuesto = v_id_tipo_presupuesto
+      ) d;
+      RETURN v_result;
+    END IF;
     SELECT json_build_object(
       'message', 'Detalles de tipo presupuesto obtenidos correctamente',
       'data',    COALESCE(json_agg(d ORDER BY d.orden), '[]'::json)
@@ -2205,6 +3344,165 @@ BEGIN
       'message', 'Detalle de tipo presupuesto eliminado correctamente',
       'data',    json_build_object('id', v_id)
     );
+
+  ELSIF p_opcion = 7 THEN
+    DECLARE
+      v_row              JSONB;
+      v_idx              INTEGER := 0;
+      v_out              JSONB   := '[]'::JSONB;
+      v_errors           JSONB;
+      v_existing         BIGINT;
+      v_f_id_tp          BIGINT;
+      v_f_codigo         TEXT;
+      v_f_descripcion    TEXT;
+      v_f_orden          SMALLINT;
+      v_f_cant_max       SMALLINT;
+      v_f_col_doc        SMALLINT;
+      v_f_codigo_sub     TEXT;
+      v_f_nombre_sub     TEXT;
+      v_f_ver_sw_exento  BOOLEAN;
+      v_f_ver_cantidad   BOOLEAN;
+      v_f_ver_valor      BOOLEAN;
+      v_f_ver_total      BOOLEAN;
+      v_f_activo         BOOLEAN;
+      v_orden_raw        TEXT;
+      v_cant_raw         TEXT;
+      v_col_raw          TEXT;
+      v_sw_raw           TEXT;
+      v_cant_v_raw       TEXT;
+      v_val_raw          TEXT;
+      v_tot_raw          TEXT;
+      v_activo_raw       TEXT;
+    BEGIN
+      FOR v_row IN SELECT * FROM jsonb_array_elements(COALESCE(p_data->'rows', '[]'::jsonb))
+      LOOP
+        v_idx := v_idx + 1;
+        v_errors := '[]'::JSONB;
+
+        v_f_id_tp       := NULLIF((v_row->>'id_tipo_presupuesto')::BIGINT, 0);
+        v_f_codigo      := UPPER(NULLIF(TRIM(v_row->>'codigo'),          ''));
+        v_f_descripcion := NULLIF(TRIM(v_row->>'descripcion'),     '');
+        v_f_codigo_sub  := UPPER(NULLIF(TRIM(v_row->>'codigo_subtotal'), ''));
+        v_f_nombre_sub  := NULLIF(TRIM(v_row->>'nombre_subtotal'), '');
+
+        v_orden_raw := NULLIF(TRIM(v_row->>'orden'), '');
+        v_f_orden := NULL;
+        IF v_orden_raw IS NOT NULL THEN
+          BEGIN
+            v_f_orden := v_orden_raw::SMALLINT;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'orden', 'detail', 'Orden inválido');
+          END;
+        END IF;
+
+        v_cant_raw := NULLIF(TRIM(v_row->>'cant_max_det'), '');
+        v_f_cant_max := NULL;
+        IF v_cant_raw IS NOT NULL THEN
+          BEGIN
+            v_f_cant_max := v_cant_raw::SMALLINT;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'cant_max_det', 'detail', 'Cantidad máxima inválida');
+          END;
+        END IF;
+
+        v_col_raw := NULLIF(TRIM(v_row->>'col_doc'), '');
+        v_f_col_doc := NULL;
+        IF v_col_raw IS NOT NULL THEN
+          BEGIN
+            v_f_col_doc := v_col_raw::SMALLINT;
+            IF v_f_col_doc NOT IN (1, 2) THEN
+              v_errors := v_errors || jsonb_build_object('field', 'col_doc', 'detail', 'Col. doc debe ser 1 ó 2');
+              v_f_col_doc := NULL;
+            END IF;
+          EXCEPTION WHEN OTHERS THEN
+            v_errors := v_errors || jsonb_build_object('field', 'col_doc', 'detail', 'Col. doc inválido');
+          END;
+        END IF;
+
+        v_sw_raw     := UPPER(TRIM(COALESCE(v_row->>'ver_sw_exento', '')));
+        v_cant_v_raw := UPPER(TRIM(COALESCE(v_row->>'ver_cantidad',  '')));
+        v_val_raw    := UPPER(TRIM(COALESCE(v_row->>'ver_valor',     '')));
+        v_tot_raw    := UPPER(TRIM(COALESCE(v_row->>'ver_total',     '')));
+        v_activo_raw := UPPER(TRIM(COALESCE(v_row->>'activo',        '')));
+
+        v_f_ver_sw_exento := CASE
+          WHEN v_sw_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_sw_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE FALSE
+        END;
+        v_f_ver_cantidad := CASE
+          WHEN v_cant_v_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_cant_v_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE FALSE
+        END;
+        v_f_ver_valor := CASE
+          WHEN v_val_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_val_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE FALSE
+        END;
+        v_f_ver_total := CASE
+          WHEN v_tot_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_tot_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE FALSE
+        END;
+        v_f_activo := CASE
+          WHEN v_activo_raw IN ('TRUE','T','1','VERDADERO','SI','SÍ','Y','YES') THEN TRUE
+          WHEN v_activo_raw IN ('FALSE','F','0','FALSO','NO','N')               THEN FALSE
+          ELSE TRUE
+        END;
+
+        IF v_f_codigo IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código requerido');
+        ELSIF LENGTH(v_f_codigo) > 10 THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo', 'detail', 'Código máx. 10 caracteres');
+        END IF;
+
+        IF v_f_descripcion IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'descripcion', 'detail', 'Descripción requerida');
+        END IF;
+
+        IF v_f_codigo_sub IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'codigo_subtotal', 'detail', 'Código subtotal requerido');
+        END IF;
+
+        IF v_f_nombre_sub IS NULL THEN
+          v_errors := v_errors || jsonb_build_object('field', 'nombre_subtotal', 'detail', 'Nombre subtotal requerido');
+        END IF;
+
+        v_existing := NULL;
+        IF v_f_id_tp IS NOT NULL AND v_f_codigo IS NOT NULL THEN
+          SELECT id INTO v_existing FROM tipos_presupuesto_detalles
+          WHERE id_tipo_presupuesto = v_f_id_tp AND UPPER(codigo) = v_f_codigo;
+        END IF;
+
+        v_out := v_out || jsonb_build_object(
+          'fila',   v_idx,
+          'action', CASE WHEN v_existing IS NOT NULL THEN 'update' ELSE 'insert' END,
+          'data',   jsonb_strip_nulls(jsonb_build_object(
+            'id',                  v_existing,
+            'id_tipo_presupuesto', v_f_id_tp,
+            'codigo',              v_f_codigo,
+            'descripcion',         v_f_descripcion,
+            'orden',               v_f_orden,
+            'cant_max_det',        v_f_cant_max,
+            'col_doc',             v_f_col_doc,
+            'codigo_subtotal',     v_f_codigo_sub,
+            'nombre_subtotal',     v_f_nombre_sub,
+            'ver_sw_exento',       v_f_ver_sw_exento,
+            'ver_cantidad',        v_f_ver_cantidad,
+            'ver_valor',           v_f_ver_valor,
+            'ver_total',           v_f_ver_total,
+            'activo',              v_f_activo
+          )),
+          'errors', CASE WHEN jsonb_array_length(v_errors) > 0 THEN v_errors ELSE NULL END
+        );
+      END LOOP;
+
+      RETURN json_build_object(
+        'message', 'Resolución completada',
+        'data',    v_out
+      );
+    END;
 
   ELSE
     RAISE EXCEPTION 'Opción inválida: %', p_opcion;
@@ -2359,7 +3657,7 @@ CREATE INDEX IF NOT EXISTS idx_presupuestos_id_contribuyente
 CREATE INDEX IF NOT EXISTS idx_presupuestos_estado
   ON presupuestos (id_empresa, estado);
 
-CREATE TRIGGER trg_presupuestos_updated_at
+CREATE OR REPLACE TRIGGER trg_presupuestos_updated_at
   BEFORE UPDATE ON presupuestos
   FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 

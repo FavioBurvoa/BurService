@@ -51,6 +51,7 @@ import {
 import { colors } from '@/styles/theme';
 import { RutInput } from '@/components/ui/RutInput';
 import { PatenteInput } from '@/components/ui/PatenteInput';
+import { FilePreview } from '@/components/ui/FilePreview';
 import { displayRut, displayPatente } from '@/lib/formatters';
 import { enterNavHandler } from '@/lib/enterNav';
 import { selectAllOnFocusHandler } from '@/lib/selectOnFocus';
@@ -909,35 +910,50 @@ export function Mantenedor<T extends Record<string, any>>({ config, onContextCha
                 if (column.dataType === 'file' && column.editor?.type === 'file') {
                   const fe = column.editor;
                   const existingFilename = form.values[fe.filenameKey ?? ''] as string;
+                  const existingMime     = fe.mimeTypeKey ? (form.values[fe.mimeTypeKey] as string) : null;
+                  const existingBase64   = fe.base64Key   ? (form.values[fe.base64Key]   as string) : null;
+                  const selectedFile     = fileSelections[colKey] ?? null;
+                  const hasContent       = !!selectedFile || !!existingFilename;
+                  const { style: commonStyle, ...commonRest } = commonProps;
                   return (
-                    <FileInput
-                      key={colKey}
-                      {...commonProps}
-                      accept={fe.accept?.join(',')}
-                      placeholder={
-                        existingFilename && !fileSelections[colKey]
-                          ? `Archivo actual: ${existingFilename}`
-                          : (fe.placeholder ?? 'Seleccionar archivo...')
-                      }
-                      description={
-                        existingFilename && !fileSelections[colKey]
-                          ? 'Deja vacío para conservar el archivo actual'
-                          : undefined
-                      }
-                      leftSection={<IconFile size={16} />}
-                      value={fileSelections[colKey] ?? null}
-                      error={form.errors[colKey]}
-                      onChange={async (file) => {
-                        setFileSelections((prev) => ({ ...prev, [colKey]: file }));
-                        if (file) {
-                          const base64 = await fileToBase64(file);
-                          form.setFieldValue(colKey, file.name);
-                          if (fe.filenameKey) form.setFieldValue(fe.filenameKey, file.name);
-                          if (fe.mimeTypeKey) form.setFieldValue(fe.mimeTypeKey, file.type);
-                          if (fe.base64Key) form.setFieldValue(fe.base64Key, base64);
+                    <Stack key={colKey} gap="xs" style={commonStyle}>
+                      {hasContent && (
+                        <FilePreview
+                          file={selectedFile}
+                          base64={existingBase64}
+                          mimeType={existingMime}
+                          filename={existingFilename}
+                          size="md"
+                        />
+                      )}
+                      <FileInput
+                        {...commonRest}
+                        accept={fe.accept?.join(',')}
+                        placeholder={
+                          existingFilename && !selectedFile
+                            ? `Archivo actual: ${existingFilename}`
+                            : (fe.placeholder ?? 'Seleccionar archivo...')
                         }
-                      }}
-                    />
+                        description={
+                          existingFilename && !selectedFile
+                            ? 'Deja vacío para conservar el archivo actual'
+                            : undefined
+                        }
+                        leftSection={<IconFile size={16} />}
+                        value={selectedFile}
+                        error={form.errors[colKey]}
+                        onChange={async (file) => {
+                          setFileSelections((prev) => ({ ...prev, [colKey]: file }));
+                          if (file) {
+                            const base64 = await fileToBase64(file);
+                            form.setFieldValue(colKey, file.name);
+                            if (fe.filenameKey) form.setFieldValue(fe.filenameKey, file.name);
+                            if (fe.mimeTypeKey) form.setFieldValue(fe.mimeTypeKey, file.type);
+                            if (fe.base64Key)   form.setFieldValue(fe.base64Key, base64);
+                          }
+                        }}
+                      />
+                    </Stack>
                   );
                 }
 

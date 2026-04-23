@@ -38,12 +38,12 @@
 - [ ] 21. Preview de logo empresa en mantenedor
 - [ ] 22. Paginación server-side en Mantenedor
 - [ ] 23. Ordenamiento por columna en grid
-- [ ] 24. Export a Excel/CSV
-- [ ] 25. Import masivo
+- [x] 24. Export a Excel/CSV
+- [x] 25. Import masivo
 - [ ] 26. Filtros avanzados por columna
 - [ ] 27. Definir página dashboard (actualmente tiene datos hardcodeados de prueba)
 - [x] 28. Mensajes de validación descriptivos — errorMap global de Zod en español + errores inline bajo cada campo del form (`form.setErrors` en Mantenedor con los `errors[]` del backend)
-- [ ] 40. Subtotales directos (Caso 1) — recalcular total al Enter/blur, no solo al salir del campo. Hoy al tipear un valor no se refleja en el total general hasta perder el foco; afecta PresupuestoForm → PanelSubtotales
+- [x] 40. Subtotales directos (Caso 1) — recalcular total al Enter/blur, no solo al salir del campo. Hoy al tipear un valor no se refleja en el total general hasta perder el foco; afecta PresupuestoForm → PanelSubtotales
 
 ## Prioridad 5 — Producción / infraestructura
 

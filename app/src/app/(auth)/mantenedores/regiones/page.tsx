@@ -155,6 +155,10 @@ const config: MantenedorConfig<Region> = {
     method: 'DELETE',
   },
   columns,
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================

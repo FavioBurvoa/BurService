@@ -5,4 +5,5 @@ export const comunasRouter = createSPRouter({
   spName: 'sp_comunas',
   schema: ComunaSchema,
   global: true,
+  extraOps: { export: true, resolve: true },
 });

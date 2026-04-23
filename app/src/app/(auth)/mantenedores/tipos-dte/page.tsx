@@ -125,6 +125,10 @@ const config: MantenedorConfig<TipoDte> = {
   save:   { path: '/api/tipos-dte', method: 'POST' },
   delete: { path: '/api/tipos-dte', method: 'DELETE' },
   columns,
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================

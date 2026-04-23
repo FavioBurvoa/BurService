@@ -136,6 +136,10 @@ const config: MantenedorConfig<TipoContribuyente> = {
     method: 'DELETE',
   },
   columns,
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================

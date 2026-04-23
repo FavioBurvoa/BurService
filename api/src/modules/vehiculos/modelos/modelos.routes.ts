@@ -5,4 +5,5 @@ export const modelosRouter = createSPRouter({
   spName: 'sp_modelos',
   schema: ModeloSchema,
   global: true,
+  extraOps: { export: true, resolve: true },
 });

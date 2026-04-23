@@ -296,6 +296,10 @@ const config: MantenedorConfig<Empresa> = {
     regiones: { path: '/api/combos/regiones', method: 'GET' },
     comunas:  { path: '/api/combos/comunas',  method: 'GET' },
   },
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================

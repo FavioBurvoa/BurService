@@ -6,4 +6,5 @@ export const tiposPresupuestoDetallesRouter = createSPRouter({
   schema: TipoPresupuestoDetalleSchema,
   global: false,
   contextField: 'id_tipo_presupuesto',
+  extraOps: { export: true, resolve: true },
 });

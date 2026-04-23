@@ -42,6 +42,15 @@ export function CurrencyInput({ value, onChange, onKeyDown, ...props }: Currency
     props.onBlur?.(e);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const parsed = parseCLP(display);
+      onChange(parsed);
+      setDisplay(formatCLP(parsed));
+    }
+    onKeyDown?.(e);
+  };
+
   return (
     <TextInput
       {...props}
@@ -49,7 +58,7 @@ export function CurrencyInput({ value, onChange, onKeyDown, ...props }: Currency
       onChange={(e) => setDisplay(e.currentTarget.value)}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      onKeyDown={onKeyDown}
+      onKeyDown={handleKeyDown}
       styles={{
         ...props.styles,
         input: { textAlign: 'right', ...(props.styles as any)?.input },

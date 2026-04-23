@@ -135,6 +135,10 @@ const config: MantenedorConfig<Modelo> = {
       method: 'GET',
     },
   },
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================

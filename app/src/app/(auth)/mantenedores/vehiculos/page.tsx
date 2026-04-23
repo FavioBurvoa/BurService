@@ -198,6 +198,10 @@ const config: MantenedorConfig<Vehiculo> = {
       method: 'GET',
     },
   },
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================

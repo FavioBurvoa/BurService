@@ -5,4 +5,5 @@ export const tiposDteRouter = createSPRouter({
   spName: 'sp_tipos_dte',
   schema: TipoDteSchema,
   global: true,
+  extraOps: { export: true, resolve: true },
 });

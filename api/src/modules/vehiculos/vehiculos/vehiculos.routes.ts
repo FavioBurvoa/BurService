@@ -5,4 +5,5 @@ export const vehiculosRouter = createSPRouter({
   spName: 'sp_vehiculos',
   schema: VehiculoSchema,
   global: true,
+  extraOps: { export: true, resolve: true },
 });

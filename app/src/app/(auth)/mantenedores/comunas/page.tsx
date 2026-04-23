@@ -179,6 +179,10 @@ const config: MantenedorConfig<Comuna> = {
       method: 'GET',
     },
   },
+  bulkOps: {
+    export: true,
+    import: true,
+  },
 };
 
 // ============================================================================
