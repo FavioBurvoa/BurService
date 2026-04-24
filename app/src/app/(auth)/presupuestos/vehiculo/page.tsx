@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -15,12 +15,15 @@ import {
   Card, Button,
 } from '@mantine/core';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
-import { IconSearch, IconEye, IconX, IconCar } from '@tabler/icons-react';
+import { IconSearch, IconEye, IconX, IconCar, IconFilterOff } from '@tabler/icons-react';
 import { PdfButton } from '@/components/ui/PdfButton';
 import { colors } from '@/styles/theme';
 import type { PresupuestoListItem } from '@/components/transaccion/types';
 import type { ApiResponse, ComboOption } from '@/components/mantenedor/types';
 import { clientFetch } from '@/lib/clientFetch';
+import { useStickyFilters } from '@/hooks/useStickyFilters';
+
+const VEHICULO_FILTER_KEYS = ['id_empresa', 'patente', 'fecha_desde', 'fecha_hasta'] as const;
 
 // ============================================================================
 // HELPERS
@@ -61,8 +64,16 @@ export default function HojaVidaVehiculoPage() {
   const fechaDesde = sp.get('fecha_desde') ?? '';   // opcional — vacío = sin límite
   const fechaHasta = sp.get('fecha_hasta') ?? '';   // opcional — vacío = sin límite
 
+  const { clearFilters } = useStickyFilters('presupuestos-vehiculo', VEHICULO_FILTER_KEYS);
+
   // Estado local del input de patente (antes de aplicar)
   const [patenteInput, setPatenteInput] = useState(patente);
+
+  // Sincronizar el input con la patente del URL cuando cambia externamente
+  // (hidratación de sticky filters, browser back/forward, etc.)
+  useEffect(() => {
+    setPatenteInput(patente);
+  }, [patente]);
 
   const setParam = (key: string, value: string | null) => {
     const p = new URLSearchParams(sp.toString());
@@ -189,6 +200,14 @@ export default function HojaVidaVehiculoPage() {
               style={{ marginBottom: 1 }}
             >
               Buscar
+            </Button>
+            <Button
+              variant="default"
+              leftSection={<IconFilterOff size={15} />}
+              onClick={() => { setPatenteInput(''); clearFilters(); }}
+              style={{ marginBottom: 1 }}
+            >
+              Limpiar
             </Button>
           </Group>
         </Paper>

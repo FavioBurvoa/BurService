@@ -13,6 +13,12 @@ services:
   #   # En desarrollo, montar src/ para hot reload con tsx watch
   #   volumes:
   #     - ./src:/app/src
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget --spider -q http://localhost:3001/health || exit 1"]
+  #     interval: 15s
+  #     timeout:  5s
+  #     retries:  3
+  #     start_period: 20s
   #   restart: unless-stopped
 
   postgres:
@@ -46,6 +52,12 @@ services:
     image: gotenberg/gotenberg:8
     ports:
       - "3002:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout:  5s
+      retries:  3
+      start_period: 10s
     restart: unless-stopped
 
   postgres-kc:
@@ -74,6 +86,7 @@ services:
       KC_DB_PASSWORD:              ${KC_DB_PASSWORD}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_HEALTH_ENABLED:           'true'
     # Monta el .jar del tema generado por `npm run build-keycloak-theme`
     # Ruta relativa desde api/ → ../keycloak-theme/dist_keycloak/
     volumes:
@@ -82,6 +95,12 @@ services:
     depends_on:
       postgres-kc:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/health/ready || exit 1"]
+      interval: 30s
+      timeout:  5s
+      retries:  5
+      start_period: 40s
     restart: unless-stopped
 
 # volumes:

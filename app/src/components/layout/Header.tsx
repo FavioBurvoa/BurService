@@ -4,6 +4,7 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Box, Group, Avatar, Menu, Text, UnstyledButton } from '@mantine/core';
 import {
   IconLogout,
@@ -26,6 +27,17 @@ interface HeaderProps {
 export function Header({ title }: HeaderProps) {
   const { data: session } = useSession();
   const { logout } = useAuth();
+
+  // Guard contra hydration mismatch: la sesión difiere entre SSR y cliente
+  // hasta que next-auth termina de rehidratar. Renderizar un placeholder
+  // estable en el primer render sincroniza SSR ≡ cliente.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const userName  = mounted ? (session?.user?.name  ?? 'Usuario') : 'Usuario';
+  const userEmail = mounted ?  session?.user?.email ?? ''         : '';
+  const userImage = mounted ?  session?.user?.image                : undefined;
+  const userInitial = userName.charAt(0).toUpperCase() || 'U';
 
   return (
     <Box
@@ -72,17 +84,17 @@ export function Header({ title }: HeaderProps) {
                 radius="xl"
                 size={32}
                 color="blue"
-                src={session?.user?.image}
+                src={userImage}
               >
-                {session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                {userInitial}
               </Avatar>
 
               <Box style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text size="sm" fw={600} style={{ lineHeight: 1.2, color: colors.sidebarText }}>
-                  {session?.user?.name || 'Usuario'}
+                  {userName}
                 </Text>
                 <Text size="xs" style={{ lineHeight: 1.2, color: colors.sidebarTextInactive }}>
-                  {session?.user?.email || ''}
+                  {userEmail}
                 </Text>
               </Box>
 

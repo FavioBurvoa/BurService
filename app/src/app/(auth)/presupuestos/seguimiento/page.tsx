@@ -13,15 +13,18 @@ import React from 'react';
 import {
   Container, Stack, Group, Title, Badge, Table, Text,
   Paper, Skeleton, Box, Select, TextInput, ActionIcon,
-  SimpleGrid, Card,
+  SimpleGrid, Card, Button,
 } from '@mantine/core';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
-import { IconChevronRight, IconChevronDown, IconEye } from '@tabler/icons-react';
+import { IconChevronRight, IconChevronDown, IconEye, IconFilterOff } from '@tabler/icons-react';
 import { PdfButton } from '@/components/ui/PdfButton';
 import { colors } from '@/styles/theme';
 import type { PresupuestoListItem } from '@/components/transaccion/types';
 import type { ApiResponse, ComboOption } from '@/components/mantenedor/types';
 import { clientFetch } from '@/lib/clientFetch';
+import { useStickyFilters } from '@/hooks/useStickyFilters';
+
+const SEGUIMIENTO_FILTER_KEYS = ['id_empresa', 'estado', 'fecha_desde', 'fecha_hasta'] as const;
 
 // ============================================================================
 // TIPOS INTERNOS
@@ -117,6 +120,8 @@ export default function SeguimientoPresupuestosPage() {
   const estado     = sp.get('estado')      ?? '';
   const fechaDesde = sp.get('fecha_desde') ?? defaultDesde();
   const fechaHasta = sp.get('fecha_hasta') ?? defaultHasta();
+
+  const { clearFilters } = useStickyFilters('presupuestos-seguimiento', SEGUIMIENTO_FILTER_KEYS);
 
   const setParam = (key: string, value: string | null) => {
     const p = new URLSearchParams(sp.toString());
@@ -225,6 +230,14 @@ export default function SeguimientoPresupuestosPage() {
               onChange={(e) => setParam('fecha_hasta', e.currentTarget.value)}
               style={{ width: 160 }}
             />
+            <Button
+              variant="default"
+              leftSection={<IconFilterOff size={15} />}
+              onClick={clearFilters}
+              style={{ marginBottom: 1 }}
+            >
+              Limpiar
+            </Button>
           </Group>
         </Paper>
 

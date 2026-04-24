@@ -14,12 +14,15 @@ import {
   TextInput, ActionIcon, Paper, Skeleton, Box, Select,
 } from '@mantine/core';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
-import { IconPlus, IconSearch, IconEye, IconX } from '@tabler/icons-react';
+import { IconPlus, IconSearch, IconEye, IconX, IconFilterOff } from '@tabler/icons-react';
 import { PdfButton } from '@/components/ui/PdfButton';
 import { colors } from '@/styles/theme';
 import type { PresupuestoListItem } from '@/components/transaccion/types';
 import type { ApiResponse, ComboOption } from '@/components/mantenedor/types';
 import { clientFetch } from '@/lib/clientFetch';
+import { useStickyFilters } from '@/hooks/useStickyFilters';
+
+const LISTA_FILTER_KEYS = ['id_empresa', 'estado', 'fecha_desde', 'fecha_hasta'] as const;
 
 // ============================================================================
 // CONSTANTES
@@ -66,6 +69,8 @@ export default function ListaPresupuestosPage() {
   const pathname = usePathname();
   const sp       = useSearchParams();
   const [search, setSearch] = useState('');
+
+  const { clearFilters } = useStickyFilters('presupuestos-lista', LISTA_FILTER_KEYS);
 
   // Valores de filtros desde URL (con defaults)
   const idEmpresa  = sp.get('id_empresa')  ?? '';
@@ -175,6 +180,14 @@ export default function ListaPresupuestosPage() {
               onChange={(e) => setParam('fecha_hasta', e.currentTarget.value)}
               style={{ width: 160 }}
             />
+            <Button
+              variant="default"
+              leftSection={<IconFilterOff size={15} />}
+              onClick={() => { setSearch(''); clearFilters(); }}
+              style={{ marginBottom: 1 }}
+            >
+              Limpiar
+            </Button>
           </Group>
         </Paper>
 
