@@ -1,0 +1,121 @@
+# ============================================================================
+# SAGA OPS — APLICACIÓN (deploy frecuente, gestionado por CI)
+# ============================================================================
+# Servicios: app, api, reporte-svc + db-migrate / db-seed (one-shot, profiles)
+#
+# Requiere que docker-compose.infra.yml esté UP primero (crea las redes
+# saga-proxy y saga-internal).
+#
+# Up:           docker compose up -d
+# Build only:   docker compose build app
+# Migrate DB:   docker compose --profile migrate run --rm db-migrate
+# Seed DB:      docker compose --profile seed    run --rm db-seed
+# ============================================================================
+
+services:
+
+  # ─── App pública (Next.js) ────────────────────────────────────────────────
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: saga-app
+    env_file:
+      - ./app/.env.docker
+    environment:
+      VIRTUAL_HOST: app.burservce.cl
+      VIRTUAL_PORT: "3000"
+      # Permite que el container valide el cert de mkcert al hablar con
+      # https://auth.burservce.cl (server-side OIDC)
+      NODE_EXTRA_CA_CERTS: /etc/ssl/mkcert-ca.crt
+    volumes:
+      - ${DATA_DIR:-./data}/mkcert/rootCA.pem:/etc/ssl/mkcert-ca.crt:ro
+    extra_hosts:
+      # Resuelve el dominio público al host local para que el server-side
+      # de Next.js alcance Keycloak vía nginx-proxy (mismo cert TLS)
+      - "auth.burservce.cl:host-gateway"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - saga-proxy
+      - saga-internal
+    restart: unless-stopped
+
+  # ─── API backend (Node Express) ───────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: saga-api
+    env_file:
+      - ./api/.env.docker
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3001/health || exit 1"]
+      interval: 15s
+      timeout:  5s
+      retries:  3
+      start_period: 20s
+    networks:
+      - saga-internal
+    restart: unless-stopped
+
+  # ─── Servicio de reportes (Excel + PDF vía Gotenberg) ─────────────────────
+  reporte-svc:
+    build:
+      context: ./reporte-svc
+      dockerfile: Dockerfile
+    container_name: saga-reporte-svc
+    environment:
+      GOTENBERG_URL: http://gotenberg:3000
+    networks:
+      - saga-internal
+    restart: unless-stopped
+
+  # ─── DB schema migration (one-shot, profile=migrate) ──────────────────────
+  # Ejecuta db/schema.sql contra postgres. Idempotente.
+  # Lo dispara: GitLab CI cuando hay cambios en db/schema.sql, o manualmente:
+  #   docker compose --profile migrate run --rm db-migrate
+  db-migrate:
+    image: postgres:16-alpine
+    container_name: saga-db-migrate
+    profiles: [migrate]
+    environment:
+      PGHOST:     postgres
+      PGUSER:     ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: ${DB_NAME}
+    volumes:
+      - ./db:/db:ro
+    command: psql -v ON_ERROR_STOP=1 -f /db/schema.sql
+    networks:
+      - saga-internal
+    restart: "no"
+
+  # ─── DB seed (one-shot, profile=seed, manual) ─────────────────────────────
+  # Carga catálogos permanentes. Solo se corre en bootstrap inicial.
+  #   docker compose --profile seed run --rm db-seed
+  db-seed:
+    image: postgres:16-alpine
+    container_name: saga-db-seed
+    profiles: [seed]
+    environment:
+      PGHOST:     postgres
+      PGUSER:     ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: ${DB_NAME}
+    volumes:
+      - ./db:/db:ro
+    command: psql -v ON_ERROR_STOP=1 -f /db/seed.sql
+    networks:
+      - saga-internal
+    restart: "no"
+
+# ─── Redes externas (definidas en docker-compose.infra.yml) ─────────────────
+networks:
+  saga-proxy:
+    external: true
+    name: saga-proxy
+  saga-internal:
+    external: true
+    name: saga-internal

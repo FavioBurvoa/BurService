@@ -1,14 +1,24 @@
 reporte-svc/node_modules/
+reporte-svc/dist/
 
 api/node_modules/
-api/.env
+api/dist/
 
 app/node_modules/
 app/.next/
-app/.env.local
 
 keycloak-theme/node_modules/
 keycloak-theme/dist/
 keycloak-theme/dist_keycloak/
 keycloak-theme/storybook-static/
 keycloak-theme/*.tsbuildinfo
+
+# ---- Datos persistentes (bind mounts de Docker) ----------------------------
+# Todo lo que viva en data/ se ignora EXCEPTO la carpeta de backups
+# (dumps de DB versionables) y los .gitkeep que mantienen estructura.
+data/*
+!data/backups/
+!data/.gitkeep
+
+data/backups/*
+!data/backups/.gitkeep

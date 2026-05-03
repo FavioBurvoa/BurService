@@ -1,0 +1,142 @@
+# ============================================================================
+# SAGA OPS — INFRAESTRUCTURA (siempre arriba, cambia raramente)
+# ============================================================================
+# Servicios: nginx-proxy, keycloak, postgres-kc, postgres, gotenberg, adminer
+#
+# Crea las redes saga-proxy y saga-internal que docker-compose.yml usa como
+# external. **Levantar PRIMERO** este compose antes que docker-compose.yml.
+#
+# Up:    docker compose -f docker-compose.infra.yml up -d
+# Debug: docker compose -f docker-compose.infra.yml --profile debug up -d
+# Down:  docker compose -f docker-compose.infra.yml down
+# ============================================================================
+
+services:
+
+  # ─── Reverse proxy con TLS (mkcert) ───────────────────────────────────────
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    container_name: saga-nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ${DATA_DIR:-./data}/nginx-proxy/certs:/etc/nginx/certs:ro
+      - ${DATA_DIR:-./data}/nginx-proxy/vhost.d:/etc/nginx/vhost.d
+      - ${DATA_DIR:-./data}/nginx-proxy/html:/usr/share/nginx/html
+    networks:
+      - saga-proxy
+    restart: unless-stopped
+
+  # ─── DB principal Saga Ops ────────────────────────────────────────────────
+  # No expone puerto al host. Acceso solo vía red interna o adminer (debug).
+  # Init schema vía db-migrate (en docker-compose.yml), no por entrypoint.
+  postgres:
+    image: postgres:16-alpine
+    container_name: saga-postgres
+    environment:
+      POSTGRES_DB:       ${DB_NAME}
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ${DATA_DIR:-./data}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout:  5s
+      retries:  5
+    networks:
+      - saga-internal
+    restart: unless-stopped
+
+  # ─── DB exclusiva de Keycloak ─────────────────────────────────────────────
+  postgres-kc:
+    image: postgres:16-alpine
+    container_name: saga-postgres-kc
+    environment:
+      POSTGRES_DB:       ${KC_DB_NAME}
+      POSTGRES_USER:     ${KC_DB_USER}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
+    volumes:
+      - ${DATA_DIR:-./data}/postgres-kc:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KC_DB_USER} -d ${KC_DB_NAME}"]
+      interval: 5s
+      timeout:  5s
+      retries:  5
+    networks:
+      - saga-internal
+    restart: unless-stopped
+
+  # ─── Keycloak (modo producción) ───────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6
+    container_name: saga-keycloak
+    environment:
+      KC_DB:                       postgres
+      KC_DB_URL:                   jdbc:postgresql://postgres-kc:5432/${KC_DB_NAME}
+      KC_DB_USERNAME:              ${KC_DB_USER}
+      KC_DB_PASSWORD:              ${KC_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_HEALTH_ENABLED:           'true'
+      # Producción: nginx-proxy termina TLS, KC sirve HTTP por dentro
+      KC_HOSTNAME:                 auth.burservce.cl
+      KC_HTTP_ENABLED:             'true'
+      KC_PROXY_HEADERS:            xforwarded
+      KC_HOSTNAME_STRICT:          'true'
+      # Para nginx-proxy
+      VIRTUAL_HOST:                auth.burservce.cl
+      VIRTUAL_PORT:                "8080"
+    volumes:
+      - ./keycloak-theme/dist_keycloak:/opt/keycloak/providers
+    command: start
+    depends_on:
+      postgres-kc:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/health/ready || exit 1"]
+      interval: 30s
+      timeout:  5s
+      retries:  5
+      start_period: 60s
+    networks:
+      - saga-proxy
+      - saga-internal
+    restart: unless-stopped
+
+  # ─── Gotenberg (Chromium + LibreOffice → PDF) ─────────────────────────────
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: saga-gotenberg
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout:  5s
+      retries:  3
+      start_period: 10s
+    networks:
+      - saga-internal
+    restart: unless-stopped
+
+  # ─── Adminer (solo --profile debug) ───────────────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: saga-adminer
+    profiles: [debug]
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - saga-internal
+    restart: unless-stopped
+
+# ─── Redes ──────────────────────────────────────────────────────────────────
+# Definidas acá como "internas". docker-compose.yml las referencia external.
+networks:
+  saga-proxy:
+    name: saga-proxy
+  saga-internal:
+    name: saga-internal

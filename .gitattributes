@@ -1,0 +1,22 @@
+# ============================================================================
+# git-crypt — cifrado transparente de secretos
+# ============================================================================
+# Los archivos que coincidan con estos patrones se cifran al hacer push y se
+# descifran automáticamente al hacer checkout, siempre que el repo esté
+# `unlock`-eado con la key.
+#
+# Setup en server nuevo:
+#   git-crypt unlock /ruta/segura/saga-ops.key
+#
+# La key NUNCA va al repo — guardarla en password manager / USB cifrado.
+# ============================================================================
+
+.env                 filter=git-crypt diff=git-crypt
+**/.env              filter=git-crypt diff=git-crypt
+**/.env.docker       filter=git-crypt diff=git-crypt
+**/.env.local        filter=git-crypt diff=git-crypt
+
+# Excepciones: los .example son templates SIN secretos, deben quedar en plano
+.env.example         !filter !diff
+**/.env.example      !filter !diff
+**/.env.local.example !filter !diff
