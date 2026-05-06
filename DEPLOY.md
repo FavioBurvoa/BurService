@@ -58,32 +58,50 @@ cp .env.example .env  # solo si no estaba versionado todavía
 nano .env             # ajustar LAN_IP, passwords reales
 ```
 
-### 4. Generar certificados TLS con mkcert
+### 4. Crear estructura de data y generar certificados TLS
+
+**4.1 — Crear `/opt/data` con perms correctos** (data persistente fuera del repo):
 
 ```bash
-# Instalar mkcert (Linux ejemplo)
+sudo mkdir -p /opt/data/{postgres,postgres-kc,nginx-proxy/{certs,vhost.d,html},mkcert}
+sudo chown -R $USER:$USER /opt/data
+chmod 700 /opt/data/postgres /opt/data/postgres-kc
+```
+
+**4.2 — Instalar mkcert** (si no lo tenés):
+
+```bash
+sudo apt install -y libnss3-tools
 curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
 chmod +x mkcert-v*-linux-amd64
 sudo mv mkcert-v*-linux-amd64 /usr/local/bin/mkcert
+mkcert -install   # genera la CA local en el server
+```
 
-# Generar CA local en el server
-mkcert -install
+**4.3 — Copiar la CA root para que los containers la confíen** (NextAuth → Keycloak):
 
-mkdir -p data/nginx-proxy/certs data/mkcert
+```bash
+cp "$(mkcert -CAROOT)/rootCA.pem" /opt/data/mkcert/rootCA.pem
+```
 
-# Copiar la CA root para que los containers la confíen (NextAuth → Keycloak)
-cp "$(mkcert -CAROOT)/rootCA.pem" data/mkcert/rootCA.pem
+**4.4 — Emitir certs para los 2 hostnames públicos**:
 
-# Emitir cert para los 2 hostnames
-cd data/nginx-proxy/certs
+```bash
+cd /opt/data/nginx-proxy/certs
 mkcert app.burservce.cl auth.burservce.cl
 # Genera 2 archivos: app.burservce.cl+1.pem y app.burservce.cl+1-key.pem
+
+# Renombrar al formato que nginx-proxy espera ({hostname}.crt + {hostname}.key)
 mv app.burservce.cl+1.pem      app.burservce.cl.crt
 mv app.burservce.cl+1-key.pem  app.burservce.cl.key
+
 # Duplicar para auth (ambos hostnames están en el SAN del mismo cert)
 cp app.burservce.cl.crt        auth.burservce.cl.crt
 cp app.burservce.cl.key        auth.burservce.cl.key
-cd ../../..
+
+# Verificar
+ls -la /opt/data/nginx-proxy/certs/
+# Deberías ver: app.burservce.cl.crt + .key, auth.burservce.cl.crt + .key
 ```
 
 ### 5. Compilar tema de Keycloak
@@ -134,7 +152,7 @@ En **laptop**, **celular** y demás dispositivos desde donde accedas:
 **Linux / Mac**: `/etc/hosts` (sudo)
 
 ```
-192.168.1.50  app.burservce.cl auth.burservce.cl
+192.168.0.50  app.burservce.cl auth.burservce.cl
 ```
 
 **Windows**: `C:\Windows\System32\drivers\etc\hosts` (como admin), misma línea.
@@ -143,7 +161,7 @@ En **laptop**, **celular** y demás dispositivos desde donde accedas:
 
 ### 10. Instalar la CA mkcert en cada dispositivo cliente
 
-Para que los browsers confíen en el cert, importar `data/mkcert/rootCA.pem` (del server) en cada dispositivo.
+Para que los browsers confíen en el cert, importar `/opt/data/mkcert/rootCA.pem` (del server) en cada dispositivo.
 
 - **Linux / Mac**: `mkcert -install` en cada dispositivo donde corras mkcert. Si no, importar manualmente al keychain (Mac) / NSS DB (Linux).
 - **Windows**: doble click al `rootCA.pem` → "Trusted Root Certification Authorities".
@@ -220,7 +238,7 @@ docker compose -f docker-compose.infra.yml restart keycloak
 
 ```bash
 docker exec saga-postgres pg_dump -U postgres burservice \
-  | gzip > data/backups/saga-$(date +%F).sql.gz
+  | gzip > backups/saga-$(date +%F).sql.gz
 ```
 
 ### Automatizado (cron diario 03:00)
@@ -233,11 +251,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 DATE=$(date +%F)
 docker exec saga-postgres pg_dump -U postgres burservice \
-  | gzip > "data/backups/saga-$DATE.sql.gz"
+  | gzip > "backups/saga-$DATE.sql.gz"
 # Retención: últimos 30 días
-find data/backups -name 'saga-*.sql.gz' -mtime +30 -delete
+find backups -name 'saga-*.sql.gz' -mtime +30 -delete
 # Versionar
-git add data/backups
+git add backups
 git -c user.email=cron@server -c user.name=cron \
   commit -m "backup db $DATE" --allow-empty
 git push
@@ -252,7 +270,7 @@ git push
 ### Restore
 
 ```bash
-gunzip < data/backups/saga-2026-04-28.sql.gz \
+gunzip < backups/saga-2026-04-28.sql.gz \
   | docker exec -i saga-postgres psql -U postgres burservice
 ```
 
@@ -326,10 +344,10 @@ Implementación en una sesión separada, una vez que el deploy manual esté vali
 
 | Síntoma | Causa probable | Fix |
 |---|---|---|
-| Browser muestra "No es seguro" | CA mkcert no instalada en el dispositivo | Importar `data/mkcert/rootCA.pem` |
+| Browser muestra "No es seguro" | CA mkcert no instalada en el dispositivo | Importar `/opt/data/mkcert/rootCA.pem` |
 | `ERR_CONNECTION_REFUSED` a `app.burservce.cl` | `/etc/hosts` no apunta a la IP del server | Editar `/etc/hosts` |
 | Login a Keycloak da timeout en redirect | KC_HOSTNAME no coincide con el Host real | Verificar `KC_HOSTNAME=auth.burservce.cl` |
-| `NextAuth` falla al validar cert en server-side | CA mkcert no copiada a `data/mkcert/rootCA.pem` | `cp $(mkcert -CAROOT)/rootCA.pem data/mkcert/` |
+| `NextAuth` falla al validar cert en server-side | CA mkcert no copiada a `/opt/data/mkcert/rootCA.pem` | `cp $(mkcert -CAROOT)/rootCA.pem /opt/data/mkcert/` |
 | `docker compose up` falla con "network saga-proxy not found" | Infra no está arriba | `docker compose -f docker-compose.infra.yml up -d` primero |
 | `db-migrate` falla con "could not connect to server" | Postgres no healthy todavía | Esperar healthcheck OK; `docker compose -f docker-compose.infra.yml ps` |
 | Backup cron falla en `git push` | Falta credencial git en cron | Configurar SSH key del cron user |
