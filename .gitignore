@@ -14,12 +14,17 @@ keycloak-theme/*.tsbuildinfo
 # dist_keycloak/ SÍ se versiona — el .jar compilado se commit desde la PC
 # para que el server NO necesite Node.js instalado (lo toma del repo)
 
-# ---- Datos persistentes (bind mounts de Docker) ----------------------------
-# Todo lo que viva en data/ se ignora EXCEPTO la carpeta de backups
-# (dumps de DB versionables) y los .gitkeep que mantienen estructura.
-data/*
-!data/backups/
-!data/.gitkeep
+# ---- Secretos: NO al remote (mientras estemos en GitHub) -------------------
+# Cuando migremos a GitLab privado, removemos esto y activamos git-crypt
+# (las reglas ya están en .gitattributes, dormidas hasta entonces).
+.env
+**/.env
+**/.env.docker
+**/.env.local
 
-data/backups/*
-!data/backups/.gitkeep
+# Excepciones: templates con placeholders (sin secretos) sí se versionan
+!.env.example
+!**/.env.example
+!**/.env.local.example
+
+ssh
