@@ -25,6 +25,7 @@ keycloak-theme/*.tsbuildinfo
 # Excepciones: templates con placeholders (sin secretos) sí se versionan
 !.env.example
 !**/.env.example
+!**/.env.docker.example
 !**/.env.local.example
 
 ssh

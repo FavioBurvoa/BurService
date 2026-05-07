@@ -1,15 +1,17 @@
 # ============================================================================
 # SAGA OPS — APLICACIÓN (deploy frecuente, gestionado por CI)
 # ============================================================================
-# Servicios: app, api, reporte-svc + db-migrate / db-seed (one-shot, profiles)
+# Servicios: app, api, reporte-svc + db-migrate (one-shot, profile)
 #
 # Requiere que docker-compose.infra.yml esté UP primero (crea las redes
 # saga-proxy y saga-internal).
 #
-# Up:           docker compose up -d
-# Build only:   docker compose build app
-# Migrate DB:   docker compose --profile migrate run --rm db-migrate
-# Seed DB:      docker compose --profile seed    run --rm db-seed
+# Up:           docker compose -f docker-compose.app.yml up -d
+# Build only:   docker compose -f docker-compose.app.yml build app
+# Migrate DB:   docker compose -f docker-compose.app.yml --profile migrate run --rm db-migrate
+#
+# Seed (opcional, solo dev/local — no se usa en prod):
+#   docker exec -i saga-postgres psql -U postgres -d burservice < db/seed.sql
 # ============================================================================
 
 services:
@@ -23,6 +25,7 @@ services:
     env_file:
       - ./app/.env.docker
     environment:
+      TZ: America/Santiago
       VIRTUAL_HOST: app.burservce.cl
       VIRTUAL_PORT: "3000"
       # Permite que el container valide el cert de mkcert al hablar con
@@ -50,6 +53,8 @@ services:
     container_name: saga-api
     env_file:
       - ./api/.env.docker
+    environment:
+      TZ: America/Santiago
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:3001/health || exit 1"]
       interval: 15s
@@ -67,6 +72,7 @@ services:
       dockerfile: Dockerfile
     container_name: saga-reporte-svc
     environment:
+      TZ: America/Santiago
       GOTENBERG_URL: http://gotenberg:3000
     networks:
       - saga-internal
@@ -81,6 +87,8 @@ services:
     container_name: saga-db-migrate
     profiles: [migrate]
     environment:
+      TZ:         America/Santiago
+      PGTZ:       America/Santiago
       PGHOST:     postgres
       PGUSER:     ${DB_USER}
       PGPASSWORD: ${DB_PASSWORD}
@@ -95,21 +103,21 @@ services:
   # ─── DB seed (one-shot, profile=seed, manual) ─────────────────────────────
   # Carga catálogos permanentes. Solo se corre en bootstrap inicial.
   #   docker compose --profile seed run --rm db-seed
-  db-seed:
-    image: postgres:16-alpine
-    container_name: saga-db-seed
-    profiles: [seed]
-    environment:
-      PGHOST:     postgres
-      PGUSER:     ${DB_USER}
-      PGPASSWORD: ${DB_PASSWORD}
-      PGDATABASE: ${DB_NAME}
-    volumes:
-      - ./db:/db:ro
-    command: psql -v ON_ERROR_STOP=1 -f /db/seed.sql
-    networks:
-      - saga-internal
-    restart: "no"
+  # db-seed:
+  #   image: postgres:16-alpine
+  #   container_name: saga-db-seed
+  #   profiles: [seed]
+  #   environment:
+  #     PGHOST:     postgres
+  #     PGUSER:     ${DB_USER}
+  #     PGPASSWORD: ${DB_PASSWORD}
+  #     PGDATABASE: ${DB_NAME}
+  #   volumes:
+  #     - ./db:/db:ro
+  #   command: psql -v ON_ERROR_STOP=1 -f /db/seed.sql
+  #   networks:
+  #     - saga-internal
+  #   restart: "no"
 
 # ─── Redes externas (definidas en docker-compose.infra.yml) ─────────────────
 networks:

@@ -11,7 +11,7 @@ Dos compose separados con responsabilidades distintas:
 | Compose | Servicios | Lifecycle |
 |---|---|---|
 | `docker-compose.infra.yml` | nginx-proxy, postgres, postgres-kc, keycloak, gotenberg, adminer (debug) | Siempre arriba; cambia raramente |
-| `docker-compose.yml` | app, api, reporte-svc, db-migrate (profile), db-seed (profile) | Deploy frecuente, gestionado por CI |
+| `docker-compose.app.yml` | app, api, reporte-svc, db-migrate (profile) | Deploy frecuente, gestionado por CI |
 
 Networks compartidas (creadas por infra, externas en app):
 
@@ -126,23 +126,22 @@ docker compose -f docker-compose.infra.yml logs -f --tail 50
 
 Espera hasta ver `postgres` y `postgres-kc` en estado **healthy**, y `keycloak` arrancando (toma ~60s).
 
-### 7. Aplicar schema y seed (1ra vez)
+### 7. Aplicar schema (1ra vez)
 
 ```bash
-# Schema (crea tablas, índices, funciones SP)
-docker compose --profile migrate run --rm db-migrate
-
-# Seed (catálogos: marcas, regiones, tipos DTE, etc.)
-docker compose --profile seed run --rm db-seed
+# Schema (crea tablas, índices, funciones SP) — idempotente, se puede correr N veces
+docker compose -f docker-compose.app.yml --profile migrate run --rm db-migrate
 ```
+
+> **Seed (catálogos)**: en producción NO se aplica desde compose — se carga manualmente desde la app a medida que el usuario crea registros. El `db/seed.sql` queda solo como referencia para desarrollo local. Si querés bootstrappear catálogos, podés hacerlo manual con: `docker exec -i saga-postgres psql -U postgres -d burservice < db/seed.sql`
 
 ### 8. Levantar la app
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.app.yml up -d --build
 
-docker compose ps
-docker compose logs -f --tail 50
+docker compose -f docker-compose.app.yml ps
+docker compose -f docker-compose.app.yml logs -f --tail 50
 ```
 
 ### 9. Configurar DNS local en cada dispositivo cliente
@@ -174,7 +173,7 @@ Primer login al admin: `https://auth.burservce.cl` → user `admin` / password d
 Crear el realm `saga-ops`, configurar el client `burservice` con redirect URIs:
 - `https://app.burservce.cl/api/auth/callback/keycloak`
 
-Copiar el client secret a `app/.env.docker` → `KEYCLOAK_SECRET`. Reiniciar el app: `docker compose restart app`.
+Copiar el client secret a `app/.env.docker` → `KEYCLOAK_SECRET`. Reiniciar el app: `docker compose -f docker-compose.app.yml restart app`.
 
 ---
 
@@ -191,18 +190,18 @@ docker compose -f docker-compose.infra.yml down              # ⚠️ corta auth
 docker compose -f docker-compose.infra.yml --profile debug up -d
 
 # App (deploy típico)
-docker compose up -d --build
-docker compose down                                          # solo app, infra sigue arriba
+docker compose -f docker-compose.app.yml up -d --build
+docker compose -f docker-compose.app.yml down               # solo app, infra sigue arriba
 
 # Todo junto (logs combinados)
-docker compose -f docker-compose.infra.yml -f docker-compose.yml ps
+docker compose -f docker-compose.infra.yml -f docker-compose.app.yml ps
 ```
 
 ### Aplicar cambios de schema
 
 ```bash
 # Después de modificar db/schema.sql
-docker compose --profile migrate run --rm db-migrate
+docker compose -f docker-compose.app.yml --profile migrate run --rm db-migrate
 ```
 
 > El CI lo hará automático cuando haya cambios en `db/schema.sql`.
@@ -210,23 +209,23 @@ docker compose --profile migrate run --rm db-migrate
 ### Logs
 
 ```bash
-docker compose logs -f                                  # app, api, reporte-svc
-docker compose -f docker-compose.infra.yml logs -f      # infra
-docker compose logs -f app api                          # selección
+docker compose -f docker-compose.app.yml   logs -f                  # app, api, reporte-svc
+docker compose -f docker-compose.infra.yml logs -f                  # infra
+docker compose -f docker-compose.app.yml   logs -f app api          # selección
 ```
 
 ### Rebuild tras cambios de código
 
 ```bash
 git pull
-docker compose up -d --build app                        # solo app
-docker compose up -d --build                            # todo
+docker compose -f docker-compose.app.yml up -d --build app          # solo app
+docker compose -f docker-compose.app.yml up -d --build              # todo
 ```
 
 ### Restart
 
 ```bash
-docker compose restart app
+docker compose -f docker-compose.app.yml   restart app
 docker compose -f docker-compose.infra.yml restart keycloak
 ```
 
@@ -330,7 +329,7 @@ Cuando levantemos el GitLab Runner self-hosted, el `.gitlab-ci.yml` aprovechará
 |---|---|
 | Solo `app/src/...` | `deploy-app` |
 | Solo `api/src/...` | `deploy-api` |
-| Solo `db/schema.sql` | `deploy-db` (corre `docker compose --profile migrate run --rm db-migrate`) |
+| Solo `db/schema.sql` | `deploy-db` (corre `docker compose -f docker-compose.app.yml --profile migrate run --rm db-migrate`) |
 | `db/` + `api/` | `deploy-db` → `deploy-api` (orden por stages, atómico) |
 | Solo `*.md` | Ninguno |
 | `keycloak-theme/` | `deploy-keycloak-theme` (rebuild theme + restart keycloak) |
@@ -348,7 +347,7 @@ Implementación en una sesión separada, una vez que el deploy manual esté vali
 | `ERR_CONNECTION_REFUSED` a `app.burservce.cl` | `/etc/hosts` no apunta a la IP del server | Editar `/etc/hosts` |
 | Login a Keycloak da timeout en redirect | KC_HOSTNAME no coincide con el Host real | Verificar `KC_HOSTNAME=auth.burservce.cl` |
 | `NextAuth` falla al validar cert en server-side | CA mkcert no copiada a `/opt/data/mkcert/rootCA.pem` | `cp $(mkcert -CAROOT)/rootCA.pem /opt/data/mkcert/` |
-| `docker compose up` falla con "network saga-proxy not found" | Infra no está arriba | `docker compose -f docker-compose.infra.yml up -d` primero |
+| `docker compose -f docker-compose.app.yml up` falla con "network saga-proxy not found" | Infra no está arriba | `docker compose -f docker-compose.infra.yml up -d` primero |
 | `db-migrate` falla con "could not connect to server" | Postgres no healthy todavía | Esperar healthcheck OK; `docker compose -f docker-compose.infra.yml ps` |
 | Backup cron falla en `git push` | Falta credencial git en cron | Configurar SSH key del cron user |
 | Port 80/443 ocupado | Otro proceso (apache/nginx host) está corriendo | `sudo systemctl stop nginx` o cambiar puertos |
