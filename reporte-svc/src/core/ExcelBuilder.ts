@@ -178,7 +178,7 @@ export class ExcelBuilder {
 
   // ── Helpers privados ──
 
-  private coerceValue(raw: unknown, col: ColumnDef): ExcelJS.CellValue {
+  private coerceValue<U>(raw: unknown, col: ColumnDef<U>): ExcelJS.CellValue {
     if (raw === null || raw === undefined) return null;
     if (col.format === 'date' && typeof raw === 'string') {
       const d = new Date(raw);

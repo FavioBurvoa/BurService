@@ -459,7 +459,6 @@ src/
 │   ├── transaccion/                     — PresupuestoForm, EditableGrid, Panel
 │   └── ui/                             — RutInput, PatenteInput, PdfButton, ErrorBoundary
 ├── config/
-│   ├── api.config.ts                    — configuración de endpoints
 │   └── menu.json                        — navegación sidebar
 ├── hooks/
 │   ├── useAuth.ts

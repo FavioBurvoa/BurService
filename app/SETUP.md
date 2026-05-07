@@ -129,7 +129,6 @@ Una vez autenticado, puedes:
    - En `src/app/api/clientes/route.ts`
    - Descomentar secciones `// Request a API externa`
    - Eliminar secciones `// MOCK DATA`
-   - Configurar `API_EXTERNAL_URL` en `.env.local`
 
 3. **Producción con Keycloak:**
    - Configurar servidor Keycloak

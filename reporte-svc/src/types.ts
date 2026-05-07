@@ -34,7 +34,7 @@ export interface ReporteOptions {
 /** Request que recibe el servicio */
 export interface RenderRequest {
   template: string;               // nombre del template a usar
-  formato:  'xlsx' | 'pdf';
+  formato:  'xlsx' | 'pdf' | 'html';   // 'html' = debug crudo de DocumentoBase
   data:     unknown[];
   options?: ReporteOptions;
 }

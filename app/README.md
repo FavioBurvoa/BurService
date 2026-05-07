@@ -66,7 +66,6 @@ Sistema profesional de gestión para taller automotriz desarrollado con Next.js 
    - `KEYCLOAK_ID`: Client ID de Keycloak
    - `KEYCLOAK_SECRET`: Client Secret de Keycloak
    - `KEYCLOAK_ISSUER`: URL del realm de Keycloak
-   - `API_EXTERNAL_URL`: URL de la API externa
 
 4. **Ejecutar en modo desarrollo**
    ```bash
@@ -115,8 +114,7 @@ bur-service/
 │   │   ├── useClientes.ts            # React Query hooks
 │   │   └── useAuth.ts                # Hook de autenticación
 │   ├── config/                       # Archivos de configuración
-│   │   ├── menu.json                 # Configuración del menú
-│   │   └── api.config.ts             # URLs API externa
+│   │   └── menu.json                 # Configuración del menú
 │   ├── types/                        # Tipos TypeScript
 │   │   └── index.ts                  # Tipos globales
 │   └── styles/                       # Estilos y tema
@@ -232,7 +230,6 @@ La aplicación incluye datos mock para desarrollo. Los endpoints API están come
 **Para usar la API externa:**
 1. Descomentar las secciones marcadas con `// Request a API externa`
 2. Eliminar las secciones marcadas con `// MOCK DATA`
-3. Configurar `API_EXTERNAL_URL` en `.env.local`
 
 ## Diseño UI
 
