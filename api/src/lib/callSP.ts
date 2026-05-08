@@ -22,8 +22,10 @@ export async function callSP<T = unknown>(
   // Usar tagged template literals (forma recomendada de postgres.js).
   // sql(spName) → identificador con comillas: "sp_tipos_vehiculo"
   // sql.json(data) → serializa el objeto como JSONB nativo sin double-encode
+  // Cast a Parameters[0] porque postgres.js JSONValue es muy estricto y
+  // Record<string, unknown> técnicamente puede contener Symbols/BigInts.
   const rows = await sql`
-    SELECT ${sql(spName)}(${opcion}::integer, ${sql.json(data)}) AS result
+    SELECT ${sql(spName)}(${opcion}::integer, ${sql.json(data as Parameters<typeof sql.json>[0])}) AS result
   `;
 
   const result = rows[0]?.result as SpResult<T> | undefined;

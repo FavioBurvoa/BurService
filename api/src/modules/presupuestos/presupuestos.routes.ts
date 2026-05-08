@@ -273,10 +273,13 @@ presupuestosRouter.post(
 
       let idNuevo!: number;
 
-      await sql.begin(async (tx) => {
+      await sql.begin(async (txRaw) => {
+        // postgres.js typings bug: TransactionSql usa Omit<Sql,...> que pierde
+        // las call signatures del template literal. Runtime OK, casteamos para tsc.
+        const tx = txRaw as unknown as typeof sql;
         // 1. Insertar cabecera + upsert vehículo/cliente/contribuyente
         const rows = await tx`
-          SELECT sp_presupuestos(3::integer, ${tx.json(flatData)}::jsonb) AS result
+          SELECT sp_presupuestos(3::integer, ${tx.json(flatData as Parameters<typeof tx.json>[0])}::jsonb) AS result
         `;
         const spResult = rows[0]?.result as SpResult<{ id: number }>;
         idNuevo = spResult.data.id;
@@ -342,10 +345,11 @@ presupuestosRouter.put(
         return;
       }
 
-      await sql.begin(async (tx) => {
+      await sql.begin(async (txRaw) => {
+        const tx = txRaw as unknown as typeof sql;
         // 1. Actualizar cabecera
         await tx`
-          SELECT sp_presupuestos(4::integer, ${tx.json(flatData)}::jsonb) AS result
+          SELECT sp_presupuestos(4::integer, ${tx.json(flatData as Parameters<typeof tx.json>[0])}::jsonb) AS result
         `;
 
         // 2. Reemplazar detalles
