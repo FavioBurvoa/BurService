@@ -368,7 +368,7 @@ export default function SeguimientoPresupuestosPage() {
                               style={{ padding: 0, backgroundColor: colors.bgSecondary ?? '#f8f9fa' }}
                             >
                               <Box px="xl" py="xs">
-                                <Table size="xs">
+                                <Table verticalSpacing="xs" horizontalSpacing="xs">
                                   <Table.Thead>
                                     <Table.Tr>
                                       <Table.Th style={{ ...thStyle, width: 70 }}>N°</Table.Th>
