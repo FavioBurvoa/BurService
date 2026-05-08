@@ -26,18 +26,49 @@ export async function POST(request: Request) {
 
   const idToken = rawToken?.idToken as string | undefined;
 
-  // ── Limpiar cookies de sesión de NextAuth ──────────────────────────────────
-  // Auth.js v5 parte la cookie en chunks (.0, .1, ...) cuando el JWT excede
-  // el límite de 4 KB — típico con tokens de Keycloak.
+  // ── Limpiar cookies de Auth.js ─────────────────────────────────────────────
+  // En producción los cookies usan prefijos __Secure- / __Host- que el browser
+  // solo borra si la respuesta incluye los flags Secure/Path correctos.
+  // cookieStore.delete() no siempre los aplica → usamos set('', {...}) explícito.
+  // Auth.js parte la session-token en chunks (.0, .1, ...) si el JWT > 4 KB.
   const cookieStore  = await cookies();
   const isProduction = process.env.NODE_ENV === 'production';
-  const prefix       = isProduction
-    ? '__Secure-authjs.session-token'
-    : 'authjs.session-token';
+
+  // Patrones de cookies que Auth.js v5 puede setear
+  const authCookiePatterns = isProduction
+    ? [
+        '__Secure-authjs.session-token',
+        '__Secure-authjs.callback-url',
+        '__Secure-authjs.pkce.code_verifier',
+        '__Secure-authjs.state',
+        '__Secure-authjs.nonce',
+        '__Host-authjs.csrf-token',
+      ]
+    : [
+        'authjs.session-token',
+        'authjs.callback-url',
+        'authjs.pkce.code_verifier',
+        'authjs.state',
+        'authjs.nonce',
+        'authjs.csrf-token',
+      ];
+
+  // Atributos para que el browser acepte el delete (matchear lo que setea Auth.js al login)
+  const expireAttrs = {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    path:     '/',
+    secure:   isProduction,
+    maxAge:   0,
+    expires:  new Date(0),
+  };
 
   for (const c of cookieStore.getAll()) {
-    if (c.name === prefix || c.name.startsWith(`${prefix}.`)) {
-      cookieStore.delete(c.name);
+    const isAuthCookie = authCookiePatterns.some(
+      (p) => c.name === p || c.name.startsWith(`${p}.`),
+    );
+    if (isAuthCookie) {
+      cookieStore.set(c.name, '', expireAttrs);
     }
   }
 
