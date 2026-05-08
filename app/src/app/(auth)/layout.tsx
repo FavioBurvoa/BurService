@@ -5,6 +5,12 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { SessionErrorGuard } from '@/components/layout/SessionErrorGuard';
 
+// Todas las rutas (auth) son inherentemente dinámicas: dependen de sesión,
+// URL search params (filtros) y datos vivos. Opt-out de static generation
+// para evitar el error "useSearchParams() should be wrapped in a suspense
+// boundary" durante next build.
+export const dynamic = 'force-dynamic';
+
 interface AuthLayoutProps {
   children: React.ReactNode;
 }
