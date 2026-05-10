@@ -25,7 +25,7 @@ const path     = require('path');
 const fs       = require('fs');
 const ExcelJS  = require('c:/test/reporte-svc/node_modules/exceljs');
 
-const SRC_DIR  = 'c:/test/vehiculos';
+const SRC_DIR  = 'c:/test/bulk-data/vehiculos';
 const OUT_DIR  = path.join(SRC_DIR, 'out');
 const SOURCES  = [
   { file: 'liv2026.xlsx', headerNeedle: 'Código SII' },
